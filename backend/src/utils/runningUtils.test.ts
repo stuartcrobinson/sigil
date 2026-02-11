@@ -227,7 +227,9 @@ describe('runningUtils', () => {
       };
 
       const distance = calculateDistance(sanFrancisco, newYork);
-      expect(distance).toBeGreaterThan(4000000); // > 4000 km
+      // SF to NYC is ~4,130 km via Haversine
+      expect(distance).toBeGreaterThan(4_100_000);
+      expect(distance).toBeLessThan(4_200_000);
     });
   });
 

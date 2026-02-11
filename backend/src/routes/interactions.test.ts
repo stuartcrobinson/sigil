@@ -176,13 +176,20 @@ describe('Interactions API', () => {
       expect(res.status).toBe(404);
     });
 
-    it('should reject like on private activity by non-owner', async () => {
+    it('should reject like on private activity by non-owner and not persist', async () => {
       const res = await request(app)
         .post(`/api/activities/${privateActivityId}/like`)
         .set('Authorization', `Bearer ${authToken2}`)
         .send({ like_type: 'like' });
 
       expect(res.status).toBe(403);
+
+      // Verify no like was persisted in the database
+      const dbCheck = await pool.query(
+        'SELECT COUNT(*)::int as count FROM activity_likes WHERE activity_id = $1 AND user_id = $2',
+        [privateActivityId, userId2]
+      );
+      expect(dbCheck.rows[0].count).toBe(0);
     });
 
     it('should allow like on friends activity by follower', async () => {

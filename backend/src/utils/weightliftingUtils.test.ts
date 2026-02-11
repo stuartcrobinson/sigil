@@ -457,6 +457,19 @@ describe('weightliftingUtils', () => {
       // Different weight: 3 digits + 1 rep + 1 confirm = 5
       expect(countTapsForSet(currentSet, previousSet)).toBe(5);
     });
+
+    it('should count 3 taps for 1-digit new weight (digits + 2)', () => {
+      const newSet: ExerciseSet = { weight: 5, reps: 5 };
+      // 1 digit + 1 rep preset + 1 confirm = 3 taps
+      expect(countTapsForSet(newSet)).toBe(3);
+    });
+
+    it('should count 4 taps for different 2-digit weight from previous', () => {
+      const previousSet: ExerciseSet = { weight: 60, reps: 8 };
+      const currentSet: ExerciseSet = { weight: 80, reps: 8 };
+      // Different weight: 2 digits + 1 rep + 1 confirm = 4
+      expect(countTapsForSet(currentSet, previousSet)).toBe(4);
+    });
   });
 
   describe('meetsQuickLoggingRequirement', () => {
