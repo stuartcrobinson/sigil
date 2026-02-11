@@ -1,0 +1,99 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sigil
+          POSTGRES_PASSWORD: sigil_test
+          POSTGRES_DB: sigil_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://sigil:sigil_test@localhost:5432/sigil_test
+        run: npm run migrate
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://sigil:sigil_test@localhost:5432/sigil_test
+          JWT_SECRET: test-jwt-secret-ci
+        run: npm test
+
+  deploy-production:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Deploy to production
+        env:
+          EC2_HOST: ${{ secrets.PROD_EC2_HOST }}
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          echo "$EC2_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+
+          # Sync built code to production EC2
+          rsync -avz --delete \
+            -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            backend/ ec2-user@$EC2_HOST:~/sigil/backend/
+
+          # Install deps and restart on EC2
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no ec2-user@$EC2_HOST << 'ENDSSH'
+            cd ~/sigil/backend
+            npm install --production
+            npm run migrate
+            pm2 restart sigil-prod || pm2 start dist/index.js --name sigil-prod
+          ENDSSH
+
+          rm -f /tmp/deploy_key
+
+      - name: Health check
+        env:
+          EC2_HOST: ${{ secrets.PROD_EC2_HOST }}
+        run: |
+          sleep 5
+          curl -f http://$EC2_HOST:3000/api/health || exit 1
+          echo "Production deployment healthy!"

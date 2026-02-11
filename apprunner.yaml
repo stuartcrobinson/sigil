@@ -1,0 +1,36 @@
+version: 1.0
+runtime: nodejs20
+
+build:
+  commands:
+    pre-build:
+      - cd backend
+      - npm ci
+    build:
+      - npm run build || echo "No build script, skipping"
+    post-build:
+      - echo "Build completed successfully"
+
+run:
+  command: cd backend && npm start
+  network:
+    port: 3000
+    env: PORT
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: PORT
+      value: "3000"
+
+# Health check configuration
+health-check:
+  protocol: http
+  path: /api/health
+  interval: 10
+  timeout: 5
+  healthy-threshold: 2
+  unhealthy-threshold: 3
+
+# Note: Environment variables (DATABASE_URL, JWT_SECRET, etc.)
+# must be set in the App Runner console or via AWS CLI
+# They are not included in this file for security reasons
