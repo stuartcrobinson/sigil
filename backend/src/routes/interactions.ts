@@ -105,6 +105,7 @@ router.delete('/:id/like', authenticate, async (req: AuthRequest, res: Response)
 // GET /api/activities/:id/likes - Get likes for an activity
 router.get('/:id/likes', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user!.userId;
     const activityId = parseInt(paramStr(req.params.id));
 
     if (isNaN(activityId)) {
@@ -112,11 +113,27 @@ router.get('/:id/likes', authenticate, async (req: AuthRequest, res: Response) =
       return;
     }
 
-    // Check activity exists
-    const activity = await pool.query('SELECT id FROM activities WHERE id = $1', [activityId]);
+    // Check activity exists and enforce privacy
+    const activity = await pool.query('SELECT id, user_id, visibility FROM activities WHERE id = $1', [activityId]);
     if (activity.rows.length === 0) {
       res.status(404).json({ error: 'Activity not found' });
       return;
+    }
+
+    const act = activity.rows[0];
+    if (act.visibility === 'private' && act.user_id !== userId) {
+      res.status(403).json({ error: 'You do not have permission to view this activity' });
+      return;
+    }
+    if (act.visibility === 'friends' && act.user_id !== userId) {
+      const followCheck = await pool.query(
+        'SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2',
+        [userId, act.user_id]
+      );
+      if (followCheck.rows.length === 0) {
+        res.status(403).json({ error: 'You do not have permission to view this activity' });
+        return;
+      }
     }
 
     const result = await pool.query(
@@ -213,6 +230,7 @@ router.post('/:id/comments', authenticate, async (req: AuthRequest, res: Respons
 // GET /api/activities/:id/comments - Get comments for activity
 router.get('/:id/comments', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user!.userId;
     const activityId = parseInt(paramStr(req.params.id));
 
     if (isNaN(activityId)) {
@@ -220,11 +238,27 @@ router.get('/:id/comments', authenticate, async (req: AuthRequest, res: Response
       return;
     }
 
-    // Check activity exists
-    const activity = await pool.query('SELECT id FROM activities WHERE id = $1', [activityId]);
+    // Check activity exists and enforce privacy
+    const activity = await pool.query('SELECT id, user_id, visibility FROM activities WHERE id = $1', [activityId]);
     if (activity.rows.length === 0) {
       res.status(404).json({ error: 'Activity not found' });
       return;
+    }
+
+    const act = activity.rows[0];
+    if (act.visibility === 'private' && act.user_id !== userId) {
+      res.status(403).json({ error: 'You do not have permission to view this activity' });
+      return;
+    }
+    if (act.visibility === 'friends' && act.user_id !== userId) {
+      const followCheck = await pool.query(
+        'SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2',
+        [userId, act.user_id]
+      );
+      if (followCheck.rows.length === 0) {
+        res.status(403).json({ error: 'You do not have permission to view this activity' });
+        return;
+      }
     }
 
     const result = await pool.query(

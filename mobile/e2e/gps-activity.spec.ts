@@ -81,13 +81,13 @@ test.describe('GPS Activity Creation & Retrieval', () => {
     const body = await response.json();
     expect(body.sport_data.route_points.length).toBe(10);
 
-    // Verify first point has all required fields
+    // Verify first point has all required fields (use toBeCloseTo for floats)
     const firstPoint = body.sport_data.route_points[0];
-    expect(firstPoint.latitude).toBe(40.7829);
-    expect(firstPoint.longitude).toBe(-73.9654);
+    expect(firstPoint.latitude).toBeCloseTo(40.7829, 4);
+    expect(firstPoint.longitude).toBeCloseTo(-73.9654, 4);
     expect(firstPoint.timestamp).toBe(1707552000000);
-    expect(firstPoint.speed).toBe(2.8);
-    expect(firstPoint.accuracy).toBe(5);
+    expect(firstPoint.speed).toBeCloseTo(2.8, 1);
+    expect(firstPoint.accuracy).toBeCloseTo(5, 0);
   });
 
   test('B-GPS-002: Route data includes avg_pace and total_distance', async ({ request }) => {

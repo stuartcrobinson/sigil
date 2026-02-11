@@ -241,6 +241,9 @@ test.describe('Photo Management — Add, View, Delete with GPS', () => {
       (p: any) => p.route_position_meters !== null
     );
 
+    // Guard: must have multiple photos to verify ordering (prevents vacuous pass)
+    expect(photosWithPosition.length).toBeGreaterThan(1);
+
     // Verify ascending order by route_position_meters
     for (let i = 1; i < photosWithPosition.length; i++) {
       expect(parseFloat(photosWithPosition[i].route_position_meters))

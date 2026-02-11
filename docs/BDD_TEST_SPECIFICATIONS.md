@@ -706,6 +706,40 @@ This document defines all user-facing behaviors that must be tested in Sigil. Ea
 
 ---
 
+### B-GPS-010: Live Route Map During Active Run [IMPLEMENTED]
+**As a** user on an active run/walk/ride
+**I want to** see my route drawn on a real map as I move
+**So that** I can see where I've been and orient myself during the activity
+
+**Acceptance Criteria:**
+1. Map displays during active tracking state (replacing the placeholder)
+2. Route drawn as orange polyline connecting all GPS points
+3. Green marker at start position
+4. Blue marker at current position (during tracking)
+5. Map auto-centers on current position as GPS points arrive
+6. Point count overlay visible on map
+7. All rendering done on-device (no cloud resources for map display)
+8. Route simplification for 200+ points (Douglas-Peucker algorithm on-device)
+9. Falls back gracefully on web/tests (shows text placeholder)
+10. Map not shown during paused state (component still renders but no auto-center)
+
+**Expected Outcomes:**
+- ✅ Map renders with polyline during active tracking
+- ✅ Start marker (green) placed at first GPS point
+- ✅ Current position marker (blue) updates as points arrive
+- ✅ Auto-centers on current position during tracking
+- ✅ Simplifies routes with 200+ points for smooth rendering
+- ✅ Falls back gracefully when react-native-maps not available
+- ✅ Point count overlay shows GPS point count
+
+**Test Data (Mock GPS for unit tests):**
+- 3 points: renders polyline + start + current markers
+- 1 point: no polyline, only start marker
+- 0 points: no markers or polyline
+- 250 points (straight line): simplifies to <250 rendered points
+
+---
+
 ### B-GPS-009: Geo-Fenced Auto Start/Stop [NOT YET IMPLEMENTED]
 **As a** runner/walker/biker
 **I want to** set START and STOP waypoints on a map so my activity auto-starts and auto-stops

@@ -331,22 +331,20 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       values.push(visibility);
     }
 
-    // If no user_id filter, apply privacy rules:
+    // Always apply privacy rules:
     // Show only activities that are:
     // 1. Public, OR
     // 2. User's own activities, OR
     // 3. Friends-only from users they follow
-    if (!user_id) {
-      conditions.push(`(
-        a.visibility = 'public'
-        OR a.user_id = $${paramCount}
-        OR (a.visibility = 'friends' AND a.user_id IN (
-          SELECT following_id FROM follows WHERE follower_id = $${paramCount}
-        ))
-      )`);
-      values.push(userId);
-      paramCount++;
-    }
+    conditions.push(`(
+      a.visibility = 'public'
+      OR a.user_id = $${paramCount}
+      OR (a.visibility = 'friends' AND a.user_id IN (
+        SELECT following_id FROM follows WHERE follower_id = $${paramCount}
+      ))
+    )`);
+    values.push(userId);
+    paramCount++;
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 

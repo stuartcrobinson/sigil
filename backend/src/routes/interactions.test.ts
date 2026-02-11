@@ -316,6 +316,44 @@ describe('Interactions API', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('should return 403 when viewing likes on private activity by non-owner', async () => {
+      const res = await request(app)
+        .get(`/api/activities/${privateActivityId}/likes`)
+        .set('Authorization', `Bearer ${authToken2}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('permission');
+    });
+
+    it('should return 403 when viewing likes on friends-only activity by non-follower', async () => {
+      // User3 does NOT follow User1
+      const res = await request(app)
+        .get(`/api/activities/${friendsActivityId}/likes`)
+        .set('Authorization', `Bearer ${authToken3}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('permission');
+    });
+
+    it('should allow viewing likes on friends-only activity by follower', async () => {
+      // User2 follows User1
+      const res = await request(app)
+        .get(`/api/activities/${friendsActivityId}/likes`)
+        .set('Authorization', `Bearer ${authToken2}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('likes');
+    });
+
+    it('should allow owner to view likes on their own private activity', async () => {
+      const res = await request(app)
+        .get(`/api/activities/${privateActivityId}/likes`)
+        .set('Authorization', `Bearer ${authToken1}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('likes');
+    });
   });
 
   // --- COMMENTS ---
@@ -478,6 +516,35 @@ describe('Interactions API', () => {
         .set('Authorization', `Bearer ${authToken1}`);
 
       expect(res.status).toBe(404);
+    });
+
+    it('should return 403 when viewing comments on private activity by non-owner', async () => {
+      const res = await request(app)
+        .get(`/api/activities/${privateActivityId}/comments`)
+        .set('Authorization', `Bearer ${authToken2}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('permission');
+    });
+
+    it('should return 403 when viewing comments on friends-only activity by non-follower', async () => {
+      // User3 does NOT follow User1
+      const res = await request(app)
+        .get(`/api/activities/${friendsActivityId}/comments`)
+        .set('Authorization', `Bearer ${authToken3}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('permission');
+    });
+
+    it('should allow viewing comments on friends-only activity by follower', async () => {
+      // User2 follows User1
+      const res = await request(app)
+        .get(`/api/activities/${friendsActivityId}/comments`)
+        .set('Authorization', `Bearer ${authToken2}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('comments');
     });
   });
 

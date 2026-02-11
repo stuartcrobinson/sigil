@@ -683,6 +683,34 @@ describe('Activity API', () => {
       expect(response.status).toBe(401);
     });
 
+    it('should enforce privacy rules when filtering by user_id', async () => {
+      // User2 (not following User1) queries User1's activities
+      const response = await request(app)
+        .get(`/api/activities?user_id=${userId1}`)
+        .set('Authorization', `Bearer ${authToken2}`);
+
+      expect(response.status).toBe(200);
+
+      // Should only see public activities, NOT private or friends-only
+      const activities = response.body.activities;
+      const visibilities = activities.map((a: { visibility: string }) => a.visibility);
+      expect(visibilities).not.toContain('private');
+      expect(visibilities).not.toContain('friends');
+      // Should contain at least one public activity
+      expect(visibilities).toContain('public');
+    });
+
+    it('should show own private activities when filtering by own user_id', async () => {
+      const response = await request(app)
+        .get(`/api/activities?user_id=${userId1}`)
+        .set('Authorization', `Bearer ${authToken1}`);
+
+      expect(response.status).toBe(200);
+      const activities = response.body.activities;
+      const hasPrivate = activities.some((a: { visibility: string }) => a.visibility === 'private');
+      expect(hasPrivate).toBe(true);
+    });
+
     it('should include like_count, comment_count, high_five_count, and photo_count in activity list', async () => {
       // Create an activity
       const createRes = await request(app)

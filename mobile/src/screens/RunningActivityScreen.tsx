@@ -20,6 +20,7 @@ import {
 import { createActivity } from '../services/activityService';
 import { addPhoto } from '../services/photoService';
 import { takePhoto } from '../services/cameraService';
+import { LiveRouteMap } from '../components/LiveRouteMap';
 import { SportType } from '../types/activity';
 
 type ActivityState = 'idle' | 'tracking' | 'paused' | 'summary';
@@ -286,12 +287,12 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
           </View>
         </View>
 
-        {/* Map placeholder - will use react-native-maps when installed */}
-        <View style={styles.mapPlaceholder} testID="map-placeholder">
-          <Text style={styles.mapPlaceholderText}>
-            Route Map{'\n'}({routePoints.length} GPS points recorded)
-          </Text>
-        </View>
+        {/* Live route map - renders polyline on-device as GPS points arrive */}
+        <LiveRouteMap
+          routePoints={routePoints}
+          isTracking={state === 'tracking'}
+          testID="map-placeholder"
+        />
 
         {/* Camera button during active tracking */}
         {state === 'tracking' && (

@@ -170,14 +170,17 @@
 - [ ] Set up mailpail SES infrastructure: `npx mailpail setup --domain test.sigil.app --bucket sigil-test-emails`
 - [ ] Set up staging EC2 instance (or reuse existing with separate pm2 process)
 
-**Current Test Totals**: Backend 322 + Mobile 324 + E2E API ~110 = **~756 tests**
+**Current Test Totals**: Backend 322 + Mobile 324 + E2E API 85 = **731 tests** (all verified on EC2 + CI)
 
-**Phase 6 Status**: RunningActivityScreen built with GPS tracking + camera button. CommentSheet modal implemented with full CRUD. HomeScreen with activity feed, bottom tabs, and CommentSheet integration. cameraService with expo-image-picker (take photo + pick from gallery). Social interaction UI on ActivityCard (like, high-five, comment counts, photo indicator). Activity list API enriched with social counts. All E2E API tests passing. False positives audited and fixed (3 rounds, latest round fixed 12 issues including a source code bug in pace validation). MailSlurp replaced with mailpail. 7 seed users with activities/follows/interactions. Sync script and CI/CD pipelines (staging + prod) created. Public GitHub repo live with CI passing. Next: EC2 SSH key, react-native-maps for route display, geo-fenced auto start/stop, route photo gallery.
+**Phase 6 Status**: RunningActivityScreen built with GPS tracking + camera button. CommentSheet modal implemented with full CRUD. HomeScreen with activity feed, bottom tabs, and CommentSheet integration. cameraService with expo-image-picker (take photo + pick from gallery). Social interaction UI on ActivityCard (like, high-five, comment counts, photo indicator). Activity list API enriched with social counts. All E2E API tests passing. False positives audited and fixed (3 rounds, latest round fixed 12 issues including a source code bug in pace validation). MailSlurp replaced with mailpail. 7 seed users with activities/follows/interactions. Sync script and CI/CD pipelines (staging + prod) created. Public GitHub repo live with CI passing. EC2 SSH working — backend + E2E tests verified on EC2 with S3 output. Next: react-native-maps for route display, geo-fenced auto start/stop, route photo gallery.
 
 **S3 Test Results**:
-- Backend: `s3://sigil-test-outputs/ec2-tests/20260211_161310_test-results.txt`
-- E2E: `s3://sigil-test-outputs/e2e-tests/LATEST_status.json`
-- Run: `./scripts/run-e2e-ec2.sh --pull` to execute E2E on EC2
+- Backend (EC2): `s3://sigil-test-outputs/backend-tests/20260211_222943_results.txt`
+- E2E (EC2): `s3://sigil-test-outputs/e2e-tests/20260211_173049/`
+- E2E latest: `s3://sigil-test-outputs/e2e-tests/LATEST_status.json`
+- Run E2E: `./scripts/run-e2e-ec2.sh --pull`
+- Run backend: `./scripts/run-tests-ec2.sh --pull`
+- GitHub CI: Run #21925665666 — 322 tests PASSED
 
 ## Phase 7: Sport Modules - Batch 2 [DEFERRED]
 - See docs/phases/phase_007_sport_modules_batch_2.md
