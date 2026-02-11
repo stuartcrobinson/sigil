@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTestEmail, waitForVerificationEmail, deleteTestEmail } from './helpers/mailslurp';
+import { createTestEmail, waitForVerificationEmail, deleteTestEmail } from './helpers/mailpail';
 import { createTestUser, TEST_PASSWORD } from './helpers/test-data';
 
 /**
