@@ -33,9 +33,14 @@ describe('photoService', () => {
         expect.stringContaining('/activities/1/photos'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('photo_url'),
         })
       );
+      // Verify request body contains exact GPS coordinates and photo URL (not just stringContaining)
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(callBody.photo_url).toBe('https://example.com/photo.jpg');
+      expect(callBody.latitude).toBe(40.7829);
+      expect(callBody.longitude).toBe(-73.9654);
+      expect(callBody.route_position_meters).toBe(1500);
     });
 
     it('should add a photo without GPS', async () => {
@@ -52,12 +57,10 @@ describe('photoService', () => {
 
       await addPhoto(1, { photo_url: 'https://example.com/photo.jpg', caption: 'Sunset' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          body: expect.stringContaining('Sunset'),
-        })
-      );
+      // Verify request body contains exact caption value (not just stringContaining)
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(callBody.photo_url).toBe('https://example.com/photo.jpg');
+      expect(callBody.caption).toBe('Sunset');
     });
 
     it('should throw on error response', async () => {

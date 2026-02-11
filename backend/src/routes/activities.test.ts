@@ -667,12 +667,12 @@ describe('Activity API', () => {
 
       expect(response.status).toBe(200);
       const activities = response.body.activities;
-      if (activities.length > 1) {
-        for (let i = 0; i < activities.length - 1; i++) {
-          const current = new Date(activities[i].start_time);
-          const next = new Date(activities[i + 1].start_time);
-          expect(current.getTime()).toBeGreaterThanOrEqual(next.getTime());
-        }
+      // Guard: must have multiple activities to verify ordering (prevents vacuous pass)
+      expect(activities.length).toBeGreaterThan(1);
+      for (let i = 0; i < activities.length - 1; i++) {
+        const current = new Date(activities[i].start_time);
+        const next = new Date(activities[i + 1].start_time);
+        expect(current.getTime()).toBeGreaterThanOrEqual(next.getTime());
       }
     });
 

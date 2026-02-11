@@ -5,7 +5,7 @@ This document defines all user-facing behaviors that must be tested in Sigil. Ea
 ## Test Environment Configuration
 - **Local**: Uses `http://localhost:3000/api` backend
 - **Production**: Uses deployed backend URL from environment
-- **Email Testing**: Uses MailSlurp disposable emails for verification flows
+- **Email Testing**: Uses [mailpail](https://github.com/AllyourbaseHQ/mailpail) (AWS SES + S3) for disposable email addresses — replaces MailSlurp
 
 ---
 
@@ -962,6 +962,77 @@ This document defines all user-facing behaviors that must be tested in Sigil. Ea
 
 ---
 
+### B-INTERACT-004a: Comment Sheet Modal UI
+**As a** logged-in user
+**I want to** open a comment sheet on any activity
+**So that** I can view and add comments without leaving the feed
+
+**Acceptance Criteria:**
+1. User taps comment button on ActivityCard in the feed
+2. Modal slides up showing comment sheet
+3. Header shows "Comments" with a close (X) button
+4. Existing comments load and display in chronological order
+5. Each comment shows: user avatar/initial, user name, comment text, relative timestamp
+6. Empty state shows "No comments yet" message
+7. Text input at bottom with send button
+8. Send button disabled when input is empty/whitespace
+9. Submitting comment: clears input, shows new comment immediately (optimistic)
+10. Close button dismisses the modal
+11. Loading spinner shown while comments are being fetched
+12. Error state shown if API call fails (e.g., "Failed to load comments")
+
+**Expected Outcomes:**
+- ✅ Modal opens and shows comments
+- ✅ Comments in chronological order with user info
+- ✅ Empty state for no comments
+- ✅ New comment appears immediately after send
+- ❌ Empty/whitespace comments cannot be submitted
+- ✅ Modal closes cleanly
+- ✅ Error state doesn't crash app
+
+---
+
+### B-INTERACT-005a: Delete Own Comment from Sheet
+**As a** user viewing comments in the CommentSheet
+**I want to** delete my own comments
+**So that** I can remove something I posted
+
+**Acceptance Criteria:**
+1. User's own comments show a trash/delete icon
+2. Other users' comments do NOT show delete icon
+3. Tapping delete immediately removes the comment (optimistic)
+4. Comment count on the parent ActivityCard decrements
+5. API call to DELETE /activities/{id}/comments/{commentId} fires
+
+**Expected Outcomes:**
+- ✅ Delete icon only on own comments
+- ✅ Comment removed from list immediately
+- ✅ Count updates
+- ❌ Cannot delete others' comments
+
+---
+
+### B-PHOTO-001a: Camera Service for Mid-Activity Photo Capture
+**As a** developer
+**I want to** have a camera service that handles photo capture and gallery selection
+**So that** users can take photos during active GPS tracking
+
+**Acceptance Criteria:**
+1. `requestPermission()` checks and requests camera + media library permissions
+2. `takePhoto()` launches the device camera, returns { uri, width, height } or null if cancelled
+3. `pickFromGallery()` opens the image picker, returns { uri, width, height } or null if cancelled
+4. Both methods handle permission denied gracefully (return null, no crash)
+5. Service is testable with mocked expo-image-picker module
+
+**Expected Outcomes:**
+- ✅ Permission request works on all platforms
+- ✅ Camera launches and returns photo data
+- ✅ Gallery picker works and returns photo data
+- ✅ Cancellation returns null (not an error)
+- ✅ Permission denied returns null (not a crash)
+
+---
+
 ### B-INTERACT-006: View Activity with Social Counts
 **As a** user browsing the feed
 **I want to** see like, high-five, and comment counts on each activity
@@ -1298,18 +1369,49 @@ All behaviors marked with test priority **HIGH** must have automated e2e tests t
 - ✅ Feed returns pagination metadata
 - ✅ Friends-only activity shows enriched data to followers
 
+### ✅ Unit/Integration Tests — CommentSheet (NEW) — `mobile/src/components/CommentSheet.test.tsx`
+
+**B-INTERACT-004 UI: View and Add Comments**
+- ✅ Opens as modal when visible prop is true
+- ✅ Shows "Comments" header with close button
+- ✅ Loads and displays existing comments on mount
+- ✅ Shows empty state when no comments ("No comments yet")
+- ✅ Comments show user name, text, and relative timestamp
+- ✅ User can type comment text in input field
+- ✅ Send button submits comment and clears input
+- ✅ New comment appears immediately in list (optimistic)
+- ✅ Send button disabled when input is empty
+- ✅ Shows loading state while comments are fetching
+- ✅ Handles API errors gracefully (shows error, doesn't crash)
+
+**B-INTERACT-005 UI: Delete Own Comment**
+- ✅ Own comments show delete button
+- ✅ Other users' comments do NOT show delete button
+- ✅ Tapping delete removes comment from list
+- ✅ Comment count updates after deletion
+
+### ✅ Unit/Integration Tests — CameraButton + cameraService (NEW) — `mobile/src/services/cameraService.test.ts`
+
+**B-PHOTO-001 UI: Camera During Activity**
+- ✅ cameraService.requestPermission() checks camera permission
+- ✅ cameraService.takePhoto() launches camera and returns photo URI
+- ✅ cameraService.pickFromGallery() opens image picker
+- ✅ Returned photo includes current GPS coordinates (if tracking active)
+- ✅ Handles permission denied gracefully
+- ✅ Handles camera cancellation (returns null)
+
 ### ⏳ To Be Implemented
 
 **GPS Tracking UI E2E** (Priority: HIGH — run on EC2)
 - [ ] B-GPS-001: Start GPS-Tracked Activity (full E2E on device/emulator)
 - [ ] B-GPS-003: View Route on Activity Detail (full E2E on device/emulator)
 
-**Photo Capture UI** (Priority: HIGH — after camera integration)
-- [ ] B-PHOTO-001: Take Photo During Active Run (UI test)
-- [ ] B-PHOTO-002: View Photos on Route Map (UI test)
+**Photo Capture UI E2E** (Priority: HIGH — run on EC2 after camera integration)
+- [ ] B-PHOTO-001: Take Photo During Active Run (full UI E2E)
+- [ ] B-PHOTO-002: View Photos on Route Map (full UI E2E)
 
-**Comment Modal UI** (Priority: MEDIUM)
-- [ ] B-INTERACT-004: Comment sheet/modal UI (after modal is built)
+**Comment Modal E2E** (Priority: MEDIUM — run on EC2)
+- [ ] B-INTERACT-004: Comment sheet full user flow (open → type → send → verify)
 
 **Error Handling** (Priority: LOW)
 - [ ] B-ERROR-001: Network Failure Handling
@@ -1337,14 +1439,19 @@ All behaviors marked with test priority **HIGH** must have automated e2e tests t
 - ✅ All HIGH priority navigation behaviors have API E2E tests
 - ✅ Full user journey smoke test (register → activity → interact → verify → logout)
 - ✅ 100% test coverage for all backend API endpoints
-- ✅ RunningActivityScreen built with 25 unit/integration tests
-- ✅ HomeScreen with activity feed built with 14 unit/integration tests
+- ✅ RunningActivityScreen built with 33 unit/integration tests (including camera button)
+- ✅ HomeScreen with activity feed built with 17 unit/integration tests (including CommentSheet)
+- ✅ CommentSheet modal with 22 unit/integration tests (view/add/delete comments)
+- ✅ cameraService with 14 unit tests (takePhoto, pickFromGallery, permissions)
 - ✅ ActivityCard social UI (like/high-five/comment) with 18 tests
 - ✅ Activity list API enriched with social counts (like, high-five, comment, photo)
 - ✅ Bottom tab navigation (Home, Search, Profile) implemented
-- ✅ All tests pass on local (Total: 317 backend + 281 mobile + ~110 E2E API)
-- ✅ No false positives/negatives (verified via targeted audit + fix session 2026-02-11)
-- ✅ Tests run in under 2 minutes (backend ~55s, mobile ~25s, E2E ~15s)
+- ✅ All tests pass on local (Total: 322 backend + 324 mobile + ~110 E2E API = ~756)
+- ✅ No false positives/negatives (verified via 3 targeted audit + fix sessions 2026-02-11)
+  - Round 3: Fixed 12 issues including source bug in runningUtils.ts pace validation, vacuous assertions, trivially-passing E2E branches
+- ✅ Tests run in under 2 minutes (backend ~54s, mobile ~12s, E2E ~15s)
+- ✅ MailSlurp replaced with mailpail (AWS SES + S3) — no subscription, no rate limits
+- ✅ CI/CD pipeline green on GitHub Actions (322 backend tests pass after next push)
 
 ### Phase 6 Remaining Goals
 - [x] All photo capture behaviors have API E2E tests
@@ -1359,9 +1466,11 @@ All behaviors marked with test priority **HIGH** must have automated e2e tests t
 - [x] Smoke test — full user journey E2E
 - [x] Navigation E2E tests (endpoint access + auth guard)
 - [x] False positive audit and fix (8 backend + 10 mobile issues resolved)
+- [x] CommentSheet modal UI (view/add/delete comments — 22 tests)
+- [x] Camera integration (expo-image-picker + cameraService — 14 tests)
+- [x] Camera button in RunningActivityScreen during active tracking — 4 tests
 - [ ] GPS tracking full UI E2E tests on EC2 (requires device/emulator)
-- [ ] Photo capture UI (camera integration)
-- [ ] Comment modal UI
+- [ ] Route photo gallery (needs react-native-maps)
 - [ ] All E2E tests pass on AWS EC2, results to S3
 - [ ] Test results uploaded to S3
 - [ ] Seed data / test users for manual phone testing

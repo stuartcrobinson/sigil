@@ -124,12 +124,13 @@ describe('HomeScreen', () => {
     });
   });
 
-  it('displays social counts on activity cards', async () => {
+  it('displays social counts on activity cards with correct values', async () => {
     const { getByTestId } = render(<HomeScreen navigation={mockNavigation} />);
 
     await waitFor(() => {
       const likeCount = getByTestId('activity-card-1-like-count');
-      expect(likeCount).toBeTruthy();
+      // Verify actual count value, not just existence
+      expect(likeCount.props.children).toBe(3);
     });
   });
 
@@ -199,6 +200,61 @@ describe('HomeScreen', () => {
 
     await waitFor(() => {
       expect(queryByTestId('activity-card-2-photo-indicator')).toBeNull();
+    });
+  });
+
+  describe('CommentSheet integration', () => {
+    beforeEach(() => {
+      mockInteractionService.getComments.mockResolvedValue({ comments: [], count: 0 });
+    });
+
+    it('opens CommentSheet when comment button is pressed', async () => {
+      const { getByTestId } = render(<HomeScreen navigation={mockNavigation} currentUserId={1} />);
+
+      await waitFor(() => {
+        expect(getByTestId('activity-card-1-comment-button')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('activity-card-1-comment-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('home-comment-sheet')).toBeTruthy();
+      });
+    });
+
+    it('closes CommentSheet when close button is pressed', async () => {
+      const { getByTestId, queryByTestId } = render(
+        <HomeScreen navigation={mockNavigation} currentUserId={1} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('activity-card-1-comment-button')).toBeTruthy();
+      });
+
+      // Open comment sheet
+      fireEvent.press(getByTestId('activity-card-1-comment-button'));
+      await waitFor(() => {
+        expect(getByTestId('home-comment-sheet-close')).toBeTruthy();
+      });
+
+      // Close it
+      fireEvent.press(getByTestId('home-comment-sheet-close'));
+      await waitFor(() => {
+        expect(queryByTestId('home-comment-sheet')).toBeNull();
+      });
+    });
+
+    it('does not navigate when comment button opens sheet', async () => {
+      const { getByTestId } = render(<HomeScreen navigation={mockNavigation} currentUserId={1} />);
+
+      await waitFor(() => {
+        expect(getByTestId('activity-card-1-comment-button')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('activity-card-1-comment-button'));
+
+      // Should NOT navigate — should open sheet instead
+      expect(mockNavigation.navigate).not.toHaveBeenCalled();
     });
   });
 });

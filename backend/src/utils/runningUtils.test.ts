@@ -153,13 +153,36 @@ describe('runningUtils', () => {
       expect(validateRunningActivityData(data)).toBe(false);
     });
 
-    it('should reject data with invalid pace structure', () => {
+    it('should reject data with invalid pace structure (number instead of string)', () => {
       const data = {
         pace: {
           average: 530  // Should be string, not number
         }
       };
       expect(validateRunningActivityData(data)).toBe(false);
+    });
+
+    it('should reject data with numeric zero pace (0 is not a string)', () => {
+      const data = {
+        pace: {
+          average: 0  // Falsy but still wrong type — must be caught
+        }
+      };
+      expect(validateRunningActivityData(data)).toBe(false);
+    });
+
+    it('should reject data with boolean pace field', () => {
+      const data = {
+        pace: {
+          average: false  // Falsy but still wrong type
+        }
+      };
+      expect(validateRunningActivityData(data)).toBe(false);
+    });
+
+    it('should accept empty route array', () => {
+      const data = { route: [] };
+      expect(validateRunningActivityData(data)).toBe(true);
     });
 
     it('should reject data with invalid splits (negative distance)', () => {
@@ -313,8 +336,13 @@ describe('runningUtils', () => {
       const splits = generateSplits(route, 1000);
       expect(splits.length).toBeGreaterThan(0);
       expect(splits[0].distance).toBe(1000);
-      expect(splits[0].time).toBeDefined();
-      expect(splits[0].pace).toBeDefined();
+      // Verify time and pace are non-empty strings matching "MM:SS" format
+      expect(typeof splits[0].time).toBe('string');
+      expect(splits[0].time.length).toBeGreaterThan(0);
+      expect(splits[0].time).toMatch(/^\d+:\d{2}$/);
+      expect(typeof splits[0].pace).toBe('string');
+      expect(splits[0].pace.length).toBeGreaterThan(0);
+      expect(splits[0].pace).toMatch(/^\d+:\d{2}$/);
     });
 
     it('should return empty array for short route', () => {

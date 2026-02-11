@@ -82,9 +82,10 @@
 - [x] Backend: photo endpoints (POST, GET, DELETE) with GPS validation — 22 tests
 - [x] Mobile: photoService (addPhoto, getPhotos, deletePhoto) — 12 tests
 - [x] Mobile: Photo count indicator on ActivityCard — tested
-- [ ] Mobile: Install expo-camera/expo-image-picker for mid-run photo capture
-- [ ] Mobile: Camera button during active GPS tracking
-- [ ] Mobile: Route photo gallery — view photos placed on the route map
+- [x] Mobile: expo-image-picker installed for photo capture
+- [x] Mobile: cameraService (takePhoto, pickFromGallery, requestPermissions) — 14 tests
+- [x] Mobile: Camera button during active GPS tracking (RunningActivityScreen) — 4 tests
+- [ ] Mobile: Route photo gallery — view photos placed on the route map (needs react-native-maps)
 
 ### 6C: Social Feed Interactions
 - [x] Backend: activity_likes table + migration (like, high_five types)
@@ -97,7 +98,8 @@
 - [x] Backend: include user_name, user_photo_url in activity list responses
 - [x] Mobile: like/high-five buttons on ActivityCard with optimistic UI — 18 tests
 - [x] Mobile: comment count display on ActivityCard
-- [ ] Mobile: comment sheet/modal (full comment viewing UI)
+- [x] Mobile: CommentSheet modal (view/add/delete comments) — 22 tests
+- [x] Mobile: CommentSheet integrated into HomeScreen — 3 tests
 
 ### 6F: HomeScreen + Navigation
 - [x] Mobile: HomeScreen with activity feed (FlatList, pull-to-refresh, empty state) — 14 tests
@@ -129,6 +131,18 @@
   - Fixed: `meetsQuickLoggingRequirement()` source code (was always returning true)
   - Fixed: YogaTimer tests converted from real-time to fake timers
   - Fixed: async assertion handling in HomeScreen tests
+- [x] Test audit round 3 (2026-02-11): 12 additional issues found and resolved across 10 files
+  - Fixed: `social.test.ts` vacuous `not.toHaveProperty` on potentially undefined element
+  - Fixed: `activities.test.ts` conditional ordering skip that could vacuously pass
+  - Fixed: `runningUtils.ts` **SOURCE BUG** — pace validation used truthy check instead of undefined check
+  - Fixed: `activities.spec.ts` `.catch()` swallowing assertion failures + conditional ordering skip
+  - Fixed: `auth.spec.ts` + `activities.spec.ts` `isDisabled` trivially-true branches (added URL verification)
+  - Fixed: `smoke.spec.ts` logout accepting 404 as success
+  - Strengthened: `runningUtils.test.ts` weak `.toBeDefined()` assertions → regex format checks
+  - Strengthened: `HomeScreen.test.tsx` existence-only social count → value verification
+  - Strengthened: `RunningActivityScreen.test.tsx` summary stats existence → content verification
+  - Strengthened: `photoService.test.ts` loose `stringContaining` → exact field checks via JSON.parse
+  - Added: 3 new tests for pace validation edge cases (numeric 0, boolean false, empty route)
 - [x] Competitive research completed (Strava, NRC, Garmin, AllTrails, Peloton, MapMyRun)
 - [x] Key insight: "Everything Strava charges $80/year for is free on Sigil. Forever."
 
@@ -147,13 +161,18 @@
 - [x] `.github/workflows/production.yml` — push to `main` branch → test → deploy to production EC2
 - [x] Auto-seed on staging deploy (test data available for phone testing)
 - [x] Public repo README.md with quickstart, test users, architecture overview
-- [ ] Create public GitHub repo `stuartcrobinson/sigil` and initialize
+- [x] Create public GitHub repo `stuartcrobinson/sigil` — https://github.com/stuartcrobinson/sigil
+- [x] Initial sync + push to GitHub — 319 backend tests pass in CI
+- [x] CI pipeline green (run #21923806408) — deploy skips gracefully without EC2 secrets
+- [x] Replace MailSlurp with mailpail for e2e email testing (AWS SES + S3)
+- [x] Test coverage audit: tightened tolerances, added DB-level assertions, closed edge case gaps
 - [ ] Configure GitHub Secrets: `STAGING_EC2_HOST`, `PROD_EC2_HOST`, `EC2_SSH_KEY`, `STAGING_DATABASE_URL`, `PROD_DATABASE_URL`
+- [ ] Set up mailpail SES infrastructure: `npx mailpail setup --domain test.sigil.app --bucket sigil-test-emails`
 - [ ] Set up staging EC2 instance (or reuse existing with separate pm2 process)
 
-**Current Test Totals**: Backend 317 + Mobile 281 + E2E API ~110 = **~708 tests**
+**Current Test Totals**: Backend 322 + Mobile 324 + E2E API ~110 = **~756 tests**
 
-**Phase 6 Status**: RunningActivityScreen built with GPS tracking. HomeScreen with activity feed and bottom tabs. Social interaction UI on ActivityCard (like, high-five, comment counts, photo indicator). Activity list API enriched with social counts. All E2E API tests passing. False positives audited and fixed. 7 seed users with activities/follows/interactions. Sync script and CI/CD pipelines (staging + prod) created. Geo-fenced auto start/stop feature documented for future implementation. Next: create public GitHub repo, configure secrets, camera integration, comment modal, react-native-maps for route display.
+**Phase 6 Status**: RunningActivityScreen built with GPS tracking + camera button. CommentSheet modal implemented with full CRUD. HomeScreen with activity feed, bottom tabs, and CommentSheet integration. cameraService with expo-image-picker (take photo + pick from gallery). Social interaction UI on ActivityCard (like, high-five, comment counts, photo indicator). Activity list API enriched with social counts. All E2E API tests passing. False positives audited and fixed (3 rounds, latest round fixed 12 issues including a source code bug in pace validation). MailSlurp replaced with mailpail. 7 seed users with activities/follows/interactions. Sync script and CI/CD pipelines (staging + prod) created. Public GitHub repo live with CI passing. Next: EC2 SSH key, react-native-maps for route display, geo-fenced auto start/stop, route photo gallery.
 
 **S3 Test Results**:
 - Backend: `s3://sigil-test-outputs/ec2-tests/20260211_161310_test-results.txt`

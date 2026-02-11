@@ -18,6 +18,8 @@ import {
   isCurrentlyTracking,
 } from '../services/locationService';
 import { createActivity } from '../services/activityService';
+import { addPhoto } from '../services/photoService';
+import { takePhoto } from '../services/cameraService';
 import { SportType } from '../types/activity';
 
 type ActivityState = 'idle' | 'tracking' | 'paused' | 'summary';
@@ -38,6 +40,8 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [routePoints, setRoutePoints] = useState<GpsPoint[]>([]);
   const [saving, setSaving] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [savedActivityId, setSavedActivityId] = useState<number | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<Date | null>(null);
@@ -158,6 +162,31 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
     }
   };
 
+  const handleCamera = async () => {
+    const photo = await takePhoto();
+    if (!photo) return;
+
+    // Get current GPS position for the photo
+    const points = getRoutePoints();
+    const lastPoint = points.length > 0 ? points[points.length - 1] : null;
+
+    setPhotoCount(prev => prev + 1);
+
+    // If activity is already saved, attach photo immediately
+    if (savedActivityId) {
+      try {
+        await addPhoto(savedActivityId, {
+          photo_url: photo.uri,
+          latitude: lastPoint?.latitude,
+          longitude: lastPoint?.longitude,
+          route_position_meters: lastPoint ? totalRouteDistance(points) : undefined,
+        });
+      } catch {
+        // Photo will be saved when activity is saved
+      }
+    }
+  };
+
   const formatElapsed = (secs: number): string => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
@@ -264,6 +293,22 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
           </Text>
         </View>
 
+        {/* Camera button during active tracking */}
+        {state === 'tracking' && (
+          <View style={styles.cameraRow}>
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={handleCamera}
+              testID="camera-button"
+            >
+              <Text style={styles.cameraIcon}>📷</Text>
+              <Text style={styles.cameraLabel}>
+                Photo{photoCount > 0 ? ` (${photoCount})` : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.controls}>
           {state === 'tracking' ? (
             <>
@@ -342,6 +387,14 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
               {routePoints.length}
             </Text>
           </View>
+          {photoCount > 0 && (
+            <View style={styles.summaryStatRow}>
+              <Text style={styles.summaryStatLabel}>Photos</Text>
+              <Text style={styles.summaryStatValue} testID="summary-photos">
+                {photoCount}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -393,6 +446,10 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, color: '#999', marginTop: 4 },
   mapPlaceholder: { flex: 1, backgroundColor: '#E8E8E8', margin: 16, borderRadius: 12, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
   mapPlaceholderText: { color: '#999', fontSize: 16, textAlign: 'center' },
+  cameraRow: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 16 },
+  cameraButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2, gap: 8 },
+  cameraIcon: { fontSize: 20 },
+  cameraLabel: { fontSize: 14, fontWeight: '600', color: '#333' },
   controls: { flexDirection: 'row', padding: 16, gap: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
   pauseButton: { flex: 1, backgroundColor: '#FF9800', paddingVertical: 16, borderRadius: 12 },
   resumeButton: { flex: 1, backgroundColor: '#4CAF50', paddingVertical: 16, borderRadius: 12 },

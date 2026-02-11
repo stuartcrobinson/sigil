@@ -201,15 +201,19 @@ test.describe('Authentication Flow', () => {
 
     const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
 
-    // Button should be disabled or show validation error
+    // Button must be disabled OR submission must show validation error
     const isDisabled = await registerButton.isDisabled();
-    if (!isDisabled) {
+    if (isDisabled) {
+      expect(isDisabled).toBe(true);
+    } else {
       await registerButton.click();
-      // Should show error message
+      // Must show error message — no silent fallthrough
       await expect(
         page.getByText(/invalid.*email|email.*invalid/i)
       ).toBeVisible({ timeout: 5000 });
     }
+    // Verify we did NOT navigate to authenticated content
+    await expect(page).not.toHaveURL(/\/(home|activities)/i);
   });
 
   test('B-AUTH-001: Registration fails with weak password', async ({ page }) => {
@@ -224,14 +228,18 @@ test.describe('Authentication Flow', () => {
 
     const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
 
-    // Button should be disabled or show validation error
+    // Button must be disabled OR submission must show validation error
     const isDisabled = await registerButton.isDisabled();
-    if (!isDisabled) {
+    if (isDisabled) {
+      expect(isDisabled).toBe(true);
+    } else {
       await registerButton.click();
-      // Should show error about password requirements
+      // Must show error about password requirements — no silent fallthrough
       await expect(
         page.getByText(/password.*requirement|weak.*password|password.*strong/i)
       ).toBeVisible({ timeout: 5000 });
     }
+    // Verify we did NOT navigate to authenticated content
+    await expect(page).not.toHaveURL(/\/(home|activities)/i);
   });
 });

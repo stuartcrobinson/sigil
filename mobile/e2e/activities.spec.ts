@@ -84,13 +84,10 @@ test.describe('Activity Tracking Flow', () => {
     const submitButton = page.getByRole('button', { name: /submit|save|log.*activity/i });
     await submitButton.click();
 
-    // Should show success message or navigate to activity list
-    await expect(
-      page.getByText(/success|saved|logged|created/i)
-    ).toBeVisible({ timeout: 5000 }).catch(() => {
-      // Alternative: check if we're back on home/activity list
-      return expect(page).toHaveURL(/\/(home|activities)/i);
-    });
+    // Should show success message OR navigate to activity list (one must succeed)
+    const successVisible = await page.getByText(/success|saved|logged|created/i).isVisible().catch(() => false);
+    const onActivitiesPage = /\/(home|activities)/i.test(page.url());
+    expect(successVisible || onActivitiesPage).toBe(true);
 
     // Activity should appear in the list
     await expect(page.getByText(activity.sport)).toBeVisible({ timeout: 5000 });
@@ -135,10 +132,10 @@ test.describe('Activity Tracking Flow', () => {
 
     // Most recent should be at the top (reverse chronological)
     const activities = await page.locator('[data-testid*="activity"], .activity-item, li').all();
-    if (activities.length >= 2) {
-      const firstActivity = activities[0];
-      await expect(firstActivity).toContainText(TEST_ACTIVITIES[1].sport);
-    }
+    // Guard: must find at least 2 activities (prevents vacuous pass)
+    expect(activities.length).toBeGreaterThanOrEqual(2);
+    const firstActivity = activities[0];
+    await expect(firstActivity).toContainText(TEST_ACTIVITIES[1].sport);
   });
 
   test('B-ACTIVITY-003: User can edit an activity', async ({ page }) => {
@@ -224,18 +221,20 @@ test.describe('Activity Tracking Flow', () => {
     // Try to submit without filling any fields
     const submitButton = page.getByRole('button', { name: /submit|save|log.*activity/i });
 
-    // Button should be disabled
+    // Button must be disabled OR submission must show validation error
     const isDisabled = await submitButton.isDisabled();
-    if (!isDisabled) {
+    if (isDisabled) {
+      // Confirm it is truly disabled (not just a coincidence)
+      expect(isDisabled).toBe(true);
+    } else {
       await submitButton.click();
-
-      // Should show validation errors
+      // Must show validation errors — this assertion MUST pass, no silent fallthrough
       await expect(
         page.getByText(/required|must.*provide|please.*enter/i)
       ).toBeVisible({ timeout: 5000 });
-    } else {
-      expect(isDisabled).toBe(true);
     }
+    // Verify we did NOT navigate away (still on form page)
+    await expect(page).not.toHaveURL(/\/(home|activities)$/i);
   });
 
   test('B-ACTIVITY-001: Activity creation fails with negative duration', async ({ page }) => {
@@ -250,16 +249,18 @@ test.describe('Activity Tracking Flow', () => {
 
     const submitButton = page.getByRole('button', { name: /submit|save|log.*activity/i });
 
+    // Button must be disabled OR submission must show validation error
     const isDisabled = await submitButton.isDisabled();
-    if (!isDisabled) {
-      await submitButton.click();
-
-      // Should show validation error
-      await expect(
-        page.getByText(/invalid|positive|greater than/i)
-      ).toBeVisible({ timeout: 5000 });
-    } else {
+    if (isDisabled) {
       expect(isDisabled).toBe(true);
+    } else {
+      await submitButton.click();
+      // Must show validation error — no silent fallthrough
+      await expect(
+        page.getByText(/invalid|positive|greater than|negative/i)
+      ).toBeVisible({ timeout: 5000 });
     }
+    // Verify we did NOT navigate away (still on form page)
+    await expect(page).not.toHaveURL(/\/(home|activities)$/i);
   });
 });

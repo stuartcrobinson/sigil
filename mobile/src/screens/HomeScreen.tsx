@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Text } from '../components/Text';
 import { ActivityCard } from '../components/ActivityCard';
+import { CommentSheet } from '../components/CommentSheet';
 import { getActivities } from '../services/activityService';
 import { likeActivity, unlikeActivity } from '../services/interactionService';
 import { Activity } from '../types/activity';
@@ -16,14 +17,16 @@ import { useFocusEffect } from '@react-navigation/native';
 
 interface HomeScreenProps {
   navigation?: any;
+  currentUserId?: number;
 }
 
-export default function HomeScreen({ navigation }: HomeScreenProps) {
+export default function HomeScreen({ navigation, currentUserId = 0 }: HomeScreenProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [likedActivities, setLikedActivities] = useState<Set<number>>(new Set());
   const [highFivedActivities, setHighFivedActivities] = useState<Set<number>>(new Set());
+  const [commentSheetActivityId, setCommentSheetActivityId] = useState<number | null>(null);
 
   const fetchActivities = useCallback(async () => {
     try {
@@ -85,8 +88,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleComment = (activityId: number) => {
-    // Will navigate to comment sheet in future
-    navigation?.navigate?.('ActivityDetail', { activityId });
+    setCommentSheetActivityId(activityId);
+  };
+
+  const handleCommentCountChange = (delta: number) => {
+    if (commentSheetActivityId === null) return;
+    setActivities(prev =>
+      prev.map(a =>
+        a.id === commentSheetActivityId
+          ? { ...a, comment_count: (a.comment_count ?? 0) + delta }
+          : a
+      )
+    );
   };
 
   const handleStartActivity = () => {
@@ -145,6 +158,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      {commentSheetActivityId !== null && (
+        <CommentSheet
+          visible={true}
+          activityId={commentSheetActivityId}
+          currentUserId={currentUserId}
+          onClose={() => setCommentSheetActivityId(null)}
+          onCommentCountChange={handleCommentCountChange}
+          testID="home-comment-sheet"
+        />
+      )}
     </View>
   );
 }

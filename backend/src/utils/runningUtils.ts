@@ -84,10 +84,10 @@ export function validateRunningActivityData(data: any): data is RunningActivityD
   // Pace is optional, but if present must have valid structure
   if (data.pace !== undefined) {
     if (typeof data.pace !== 'object') return false;
-    if (data.pace.average && typeof data.pace.average !== 'string') return false;
-    if (data.pace.current && typeof data.pace.current !== 'string') return false;
-    if (data.pace.max && typeof data.pace.max !== 'string') return false;
-    if (data.pace.min && typeof data.pace.min !== 'string') return false;
+    if (data.pace.average !== undefined && typeof data.pace.average !== 'string') return false;
+    if (data.pace.current !== undefined && typeof data.pace.current !== 'string') return false;
+    if (data.pace.max !== undefined && typeof data.pace.max !== 'string') return false;
+    if (data.pace.min !== undefined && typeof data.pace.min !== 'string') return false;
   }
 
   // Splits are optional, but if present must be valid array

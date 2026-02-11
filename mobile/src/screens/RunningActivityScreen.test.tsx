@@ -5,12 +5,19 @@ import { RunningActivityScreen } from './RunningActivityScreen';
 import * as locationService from '../services/locationService';
 import * as activityService from '../services/activityService';
 
+import * as cameraService from '../services/cameraService';
+import * as photoService from '../services/photoService';
+
 // Mock the services
 jest.mock('../services/locationService');
 jest.mock('../services/activityService');
+jest.mock('../services/cameraService');
+jest.mock('../services/photoService');
 
 const mockLocationService = locationService as jest.Mocked<typeof locationService>;
 const mockActivityService = activityService as jest.Mocked<typeof activityService>;
+const mockCameraService = cameraService as jest.Mocked<typeof cameraService>;
+const mockPhotoService = photoService as jest.Mocked<typeof photoService>;
 
 describe('RunningActivityScreen', () => {
   const mockOnSave = jest.fn();
@@ -279,7 +286,7 @@ describe('RunningActivityScreen', () => {
       expect(getByTestId('running-summary-view')).toBeTruthy();
     });
 
-    it('displays summary stats', () => {
+    it('displays summary stats with actual content', () => {
       const { getByTestId } = render(
         <RunningActivityScreen onSave={mockOnSave} onCancel={mockOnCancel} />
       );
@@ -287,11 +294,17 @@ describe('RunningActivityScreen', () => {
       fireEvent.press(getByTestId('start-activity-button'));
       fireEvent.press(getByTestId('stop-button'));
 
-      expect(getByTestId('summary-sport')).toBeTruthy();
-      expect(getByTestId('summary-duration')).toBeTruthy();
-      expect(getByTestId('summary-distance')).toBeTruthy();
-      expect(getByTestId('summary-pace')).toBeTruthy();
-      expect(getByTestId('summary-points')).toBeTruthy();
+      // Verify elements exist AND have content (not just existence checks)
+      const sportEl = getByTestId('summary-sport');
+      expect(sportEl.props.children).toBeTruthy();
+      const durationEl = getByTestId('summary-duration');
+      expect(durationEl.props.children).toBeTruthy();
+      const distanceEl = getByTestId('summary-distance');
+      expect(distanceEl.props.children !== undefined).toBe(true);
+      const paceEl = getByTestId('summary-pace');
+      expect(paceEl.props.children).toBeTruthy();
+      const pointsEl = getByTestId('summary-points');
+      expect(pointsEl.props.children !== undefined).toBe(true);
     });
 
     it('shows save and discard buttons', () => {
@@ -443,6 +456,66 @@ describe('RunningActivityScreen', () => {
           expect.objectContaining({ sport_type: 'biking' })
         );
       });
+    });
+  });
+
+  describe('Camera Button', () => {
+    it('shows camera button during active tracking', () => {
+      const { getByTestId } = render(
+        <RunningActivityScreen onSave={mockOnSave} onCancel={mockOnCancel} />
+      );
+
+      fireEvent.press(getByTestId('start-activity-button'));
+      expect(getByTestId('camera-button')).toBeTruthy();
+    });
+
+    it('does not show camera button when paused', () => {
+      const { getByTestId, queryByTestId } = render(
+        <RunningActivityScreen onSave={mockOnSave} onCancel={mockOnCancel} />
+      );
+
+      fireEvent.press(getByTestId('start-activity-button'));
+      fireEvent.press(getByTestId('pause-button'));
+      expect(queryByTestId('camera-button')).toBeNull();
+    });
+
+    it('increments photo count when photo is taken', async () => {
+      mockCameraService.takePhoto.mockResolvedValue({
+        uri: 'file:///photo.jpg',
+        width: 1920,
+        height: 1080,
+      });
+
+      const { getByTestId, getByText } = render(
+        <RunningActivityScreen onSave={mockOnSave} onCancel={mockOnCancel} />
+      );
+
+      fireEvent.press(getByTestId('start-activity-button'));
+
+      await act(async () => {
+        fireEvent.press(getByTestId('camera-button'));
+      });
+
+      await waitFor(() => {
+        expect(getByText('Photo (1)')).toBeTruthy();
+      });
+    });
+
+    it('does not increment count when photo is cancelled', async () => {
+      mockCameraService.takePhoto.mockResolvedValue(null);
+
+      const { getByTestId, getByText } = render(
+        <RunningActivityScreen onSave={mockOnSave} onCancel={mockOnCancel} />
+      );
+
+      fireEvent.press(getByTestId('start-activity-button'));
+
+      await act(async () => {
+        fireEvent.press(getByTestId('camera-button'));
+      });
+
+      // Should still show "Photo" without count
+      expect(getByText('Photo')).toBeTruthy();
     });
   });
 

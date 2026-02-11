@@ -289,7 +289,14 @@ describe('Social API', () => {
       const response = await request(app).get('/api/social/search?q=Alice');
 
       expect(response.status).toBe(200);
-      expect(response.body.users[0]).not.toHaveProperty('password_hash');
+      // Guard: ensure results exist before checking properties (empty array would vacuously pass)
+      expect(response.body.users.length).toBeGreaterThan(0);
+      // Verify ALL results, not just the first
+      response.body.users.forEach((user: any) => {
+        expect(user).not.toHaveProperty('password_hash');
+        expect(user).toHaveProperty('id');
+        expect(user).toHaveProperty('name');
+      });
     });
   });
 });
