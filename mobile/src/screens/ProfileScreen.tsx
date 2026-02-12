@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
+import { showAlert } from '../utils/platformAlert';
 
 export default function ProfileScreen() {
   const { user, logout, refreshUser } = useAuth();
@@ -30,9 +30,9 @@ export default function ProfileScreen() {
       });
       await refreshUser();
       setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
+      showAlert('Success', 'Profile updated successfully');
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update profile');
+      showAlert('Error', error instanceof Error ? error.message : 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -45,7 +45,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
+    showAlert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',

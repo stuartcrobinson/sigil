@@ -44,10 +44,24 @@ async function fetchWithAuth(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('Request timed out', 0);
+    }
+    throw new ApiError('Network error — check your connection', 0);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);

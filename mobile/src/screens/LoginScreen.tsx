@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { showAlert } from '../utils/platformAlert';
 
 interface LoginScreenProps {
   navigation: {
@@ -26,7 +26,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -34,7 +34,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     try {
       await login({ email, password });
     } catch (error) {
-      Alert.alert('Login Failed', error instanceof Error ? error.message : 'An error occurred');
+      showAlert('Login Failed', error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setIsLoading(false);
     }

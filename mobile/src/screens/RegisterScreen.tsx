@@ -5,13 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { showAlert } from '../utils/platformAlert';
 
 interface RegisterScreenProps {
   navigation: {
@@ -29,17 +29,17 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showAlert('Error', 'Passwords do not match');
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      showAlert('Error', 'Password must be at least 8 characters');
       return;
     }
 
@@ -47,7 +47,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
     try {
       await register({ name, email, password });
     } catch (error) {
-      Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
+      showAlert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setIsLoading(false);
     }

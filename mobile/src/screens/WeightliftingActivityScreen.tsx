@@ -5,9 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert
 } from 'react-native';
 import { ExercisePicker } from '../components/ExercisePicker';
+import { showAlert } from '../utils/platformAlert';
 import { SetLogger, ExerciseSet } from '../components/SetLogger';
 import { Exercise } from '../data/exercises';
 
@@ -86,7 +86,7 @@ export const WeightliftingActivityScreen: React.FC<WeightliftingActivityScreenPr
 
   const handleSaveWorkout = () => {
     if (exercises.length === 0 || exercises.every(ex => ex.sets.length === 0)) {
-      Alert.alert('No Sets Logged', 'Please log at least one set before saving.');
+      showAlert('No Sets Logged', 'Please log at least one set before saving.');
       return;
     }
 
@@ -95,7 +95,7 @@ export const WeightliftingActivityScreen: React.FC<WeightliftingActivityScreenPr
 
   const handleCancelWorkout = () => {
     if (exercises.some(ex => ex.sets.length > 0)) {
-      Alert.alert(
+      showAlert(
         'Discard Workout?',
         'Are you sure you want to discard this workout?',
         [

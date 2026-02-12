@@ -1508,3 +1508,249 @@ All behaviors marked with test priority **HIGH** must have automated e2e tests t
 - [ ] All E2E tests pass on AWS EC2, results to S3
 - [ ] Test results uploaded to S3
 - [ ] Seed data / test users for manual phone testing
+
+---
+
+## Delight Features Behaviors (Phase 6I)
+
+### B-ACHIEVE-001: Achievement Award on Activity Save
+**As a** user completing an activity
+**I want to** automatically earn achievements when I hit milestones
+**So that** I feel rewarded and motivated to keep going
+
+**Acceptance Criteria:**
+1. After saving an activity, system checks all achievement criteria
+2. New achievements are awarded and returned in response
+3. Achievements are idempotent — not re-awarded
+4. Achievement types include: first_activity, first_run, first_5k, first_10k, half_marathon, marathon, total_50km, total_100km, streak_7, streak_30, early_bird, night_owl, five_activities, ten_activities, fifty_activities, photo_first, social_butterfly
+5. Each achievement has type, name, description, achieved_at
+6. Users can view all earned and unearned achievements
+
+**Expected Outcomes:**
+- POST /api/users/:id/check-achievements awards new achievements
+- GET /api/users/:id/achievements returns earned + all available
+- Already-earned achievements are not duplicated
+- Non-cardio activities don't trigger distance achievements
+
+**Tests:** 36 backend integration tests covering all achievement types, PR detection, streaks, and summaries
+
+---
+
+### B-PR-001: Personal Record Detection
+**As a** runner completing an activity
+**I want to** be told when I set a new personal record
+**So that** I can celebrate my improvement
+
+**Acceptance Criteria:**
+1. System detects PRs for standard distances: 1K, 5K, 10K, half marathon, marathon
+2. System tracks longest run and fastest pace
+3. New PRs include comparison to previous record
+4. First-time records are flagged as "First time!"
+5. Slower activities do NOT replace existing PRs
+6. PRs are sport-type specific (running PRs separate from biking)
+
+**Expected Outcomes:**
+- POST /api/users/:id/check-achievements with activity data returns new_personal_records
+- GET /api/users/:id/personal-records returns all PRs
+- Can filter PRs by sport_type
+- PR improvement shows time delta from previous record
+
+---
+
+### B-STREAK-001: Activity Streak Tracking
+**As a** user
+**I want to** see my current and longest activity streaks
+**So that** I'm motivated to stay consistent
+
+**Acceptance Criteria:**
+1. Current streak counts consecutive days with at least one activity
+2. Streak breaks when there's a gap of 2+ days
+3. Multiple activities on the same day count as 1 day
+4. Longest streak is tracked separately from current
+5. Streak of 0 for new users with no activities
+6. Streak includes today or yesterday to be "current"
+
+**Expected Outcomes:**
+- GET /api/users/:id/streaks returns current_streak, longest_streak, total_active_days, total_activities
+- Gap of 2+ days resets current streak to 1 (next activity day)
+- Longest streak preserved even when current streak resets
+
+---
+
+### B-SUMMARY-001: Activity Period Summary
+**As a** user
+**I want to** see my weekly, monthly, and yearly activity summaries
+**So that** I can track my progress over time
+
+**Acceptance Criteria:**
+1. Summary includes activity count, total duration, total distance, active days
+2. Comparison with previous period (delta values)
+3. Sport breakdown by type
+4. Supports week, month, year periods
+5. Defaults to week if no period specified
+6. Rejects invalid period values
+
+**Expected Outcomes:**
+- GET /api/users/:id/summary?period=week returns current + previous + comparison + sport_breakdown
+- All zero values for new users
+- Accurate calculations for multiple activities
+
+---
+
+### B-ONBOARD-001: First-Run Onboarding
+**As a** new user opening the app for the first time
+**I want to** see a brief introduction to the app's features
+**So that** I understand what the app offers before I start
+
+**Acceptance Criteria:**
+1. Three onboarding slides: Track Your Runs, Connect With Friends, Earn Badges & PRs
+2. Can advance through slides with Next button
+3. Can skip onboarding at any time
+4. Last slide shows "Let's Go!" button
+5. Completing onboarding transitions to main app
+6. Each slide shows icon, title, and description
+
+**Expected Outcomes:**
+- Slides advance in order
+- Skip works from any slide
+- "Let's Go!" completes the flow
+
+**Tests:** 9 mobile component tests
+
+---
+
+### B-AUDIO-001: Audio Pace Announcements During Run
+**As a** runner
+**I want to** hear my distance and pace announced aloud at each kilometer
+**So that** I can track my progress without looking at my phone
+
+**Acceptance Criteria:**
+1. Announcement triggered at each 1km milestone
+2. Includes distance, elapsed time, and current pace
+3. Can be toggled on/off during tracking
+4. No duplicate announcements for same milestone
+5. Configurable distance interval (default 1km)
+6. Graceful fallback when TTS not available
+
+**Expected Outcomes:**
+- checkAndAnnounce returns true at milestones, false between them
+- Audio toggle visible during tracking
+- Announcements format: "5 kilometers. Time: 25 minutes. Pace: 5 minutes per kilometer."
+
+**Tests:** 24 mobile unit tests for speech formatting and announcement logic
+
+---
+
+### B-CELEBRATE-001: Post-Run Celebration Screen
+**As a** user who just saved an activity
+**I want to** see a celebration screen showing my new PRs and achievements
+**So that** I feel accomplished and motivated
+
+**Acceptance Criteria:**
+1. Shows after activity is saved (before returning to feed)
+2. Displays activity summary (sport, duration, distance, pace)
+3. Highlights any new personal records with time improvement
+4. Shows newly earned achievement badges
+5. Shows "Amazing Work!" when PRs/achievements earned, "Activity Saved!" otherwise
+6. Done button returns to feed
+
+**Expected Outcomes:**
+- CelebrationScreen renders with stats
+- PR section visible only when PRs earned
+- Achievement section visible only when badges earned
+- Improvement delta shown for existing PRs
+- "First time!" shown for new PRs
+
+**Tests:** 13 mobile component tests
+
+---
+
+## Web Platform Behaviors
+
+### B-WEB-001: Cross-Platform Alert Dialogs
+**As a** user on any platform (iOS, Android, or web browser)
+**I want to** see confirmation and error dialogs
+**So that** I can respond to prompts and understand errors
+
+**Acceptance Criteria:**
+1. showAlert() displays native Alert.alert on iOS/Android
+2. showAlert() displays window.confirm for multi-button dialogs on web
+3. showAlert() displays window.alert for simple messages on web
+4. Confirm button triggers the non-cancel action's onPress
+5. Cancel/dismiss triggers the cancel action's onPress (if any)
+6. Affected screens: Login, Register, Profile, RunningActivity, YogaActivity, WeightliftingActivity
+
+**Expected Outcomes:**
+- Logout confirmation works on web (confirm → logs out, cancel → stays)
+- Discard workout confirmation works on web
+- Error messages display on web (registration, login, profile save failures)
+- Save success messages display on web
+
+**Tests:** Existing mobile unit tests cover native path via jest.spyOn(Alert, 'alert'); web path tested manually
+
+---
+
+### B-WEB-002: GPS Tracking on Web Browser
+**As a** runner or cyclist using the web app in a mobile browser
+**I want to** track my route via GPS
+**So that** my distance and route are recorded accurately
+
+**Acceptance Criteria:**
+1. Browser Geolocation API (navigator.geolocation.watchPosition) used on web
+2. enableHighAccuracy: true for best GPS fix
+3. Route points include lat, lng, timestamp, elevation, speed, accuracy
+4. Geolocation watch is cleared when tracking stops
+5. Graceful fallback when geolocation not available or denied
+6. Mock GPS mode still works for testing on web
+
+**Expected Outcomes:**
+- Location permission prompt appears when starting a tracked activity on web
+- GPS points stream in during activity tracking
+- Route polyline renders on LiveRouteMap.web.tsx
+- Stopping tracking clears the geolocation watch
+
+**Tests:** Existing locationService.web.test.ts covers mock GPS; real GPS tested via manual browser testing
+
+---
+
+### B-WEB-003: Camera and Photo Capture on Web
+**As a** user on a mobile web browser
+**I want to** take a photo or pick from gallery
+**So that** I can attach images to my activities or profile
+
+**Acceptance Criteria:**
+1. takePhoto() opens device camera via file input with capture="environment"
+2. pickFromGallery() opens file picker for images (accept="image/*")
+3. Returns PhotoResult with uri (object URL), width, height
+4. Resolves to null if user cancels
+5. Cleans up DOM elements after use
+
+**Expected Outcomes:**
+- Camera opens on mobile web when "Take Photo" is tapped
+- Gallery/file picker opens when "Choose from Gallery" is tapped
+- Selected image is returned as an object URL with dimensions
+- Cancellation resolves gracefully (no errors, returns null)
+
+**Tests:** Manual testing on mobile Safari/Chrome; unit tests would require DOM mocking
+
+---
+
+### B-WEB-004: Web-Specific UI Rendering
+**As a** user accessing Sigil from a web browser
+**I want to** see a functional, styled interface
+**So that** I can use all features without a native app install
+
+**Acceptance Criteria:**
+1. All screens render correctly on web (React Native Web)
+2. LiveRouteMap.web.tsx renders Leaflet map (not react-native-maps)
+3. Navigation works via React Navigation web support
+4. Keyboard handling uses web-appropriate behavior
+5. Scrolling and touch interactions work on web
+
+**Expected Outcomes:**
+- App loads and renders login screen on web
+- Navigation between screens works
+- Map displays with route overlay during tracking
+- All form inputs are functional
+
+**Tests:** Manual browser testing; component render tests run on all platforms via Jest

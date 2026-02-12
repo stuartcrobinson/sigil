@@ -7,6 +7,7 @@ import socialRoutes from './routes/social';
 import activityRoutes from './routes/activities';
 import interactionRoutes from './routes/interactions';
 import photoRoutes from './routes/photos';
+import statsRoutes from './routes/stats';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use('/api/social', socialRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/activities', interactionRoutes);
 app.use('/api/activities', photoRoutes);
+app.use('/api/users', statsRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {

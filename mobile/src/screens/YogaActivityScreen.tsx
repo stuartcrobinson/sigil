@@ -6,9 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert
 } from 'react-native';
 import { YogaTimer } from '../components/YogaTimer';
+import { showAlert } from '../utils/platformAlert';
 
 type YogaFlowType = 'vinyasa' | 'hatha' | 'yin' | 'restorative' | 'ashtanga' | 'bikram' | 'other';
 type YogaDifficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -41,7 +41,7 @@ export const YogaActivityScreen: React.FC<YogaActivityScreenProps> = ({ onSave, 
 
   const handleSave = () => {
     if (!actualMinutes) {
-      Alert.alert('Error', 'Please complete the session before saving');
+      showAlert('Error', 'Please complete the session before saving');
       return;
     }
 
@@ -59,7 +59,7 @@ export const YogaActivityScreen: React.FC<YogaActivityScreenProps> = ({ onSave, 
 
   const handleCancel = () => {
     if (sessionStarted) {
-      Alert.alert(
+      showAlert(
         'Cancel Session',
         'Are you sure you want to cancel this session?',
         [

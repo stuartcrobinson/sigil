@@ -72,7 +72,13 @@
 - [x] Mobile: RunningActivityScreen with GPS tracking (start/pause/resume/stop/save) — 25 tests
 - [x] Mobile: Live route recording during activity (lat/lng/timestamp/speed/accuracy)
 - [x] Backend: store GPS route in sport_data JSONB — E2E tested (10 tests)
-- [ ] Mobile: Route display on map after activity (react-native-maps — needs native module)
+- [x] Mobile: LiveRouteMap component — real-time route display during active runs (react-native-maps) — 12 tests
+  - Douglas-Peucker route simplification (on-device, 200+ point threshold)
+  - Auto-center on current position during tracking
+  - Start marker (green), current position marker (blue), polyline (orange)
+  - Point count overlay, graceful web/test fallback
+  - BDD spec: B-GPS-010
+- [ ] Mobile: Route display on map after activity (post-save, route review)
 - [ ] Mobile: Background location tracking (expo-location background task)
 - [ ] Mobile: Geo-fenced auto start/stop — set START/STOP waypoints on map, auto-start when user reaches START, auto-stop when user reaches STOP (after moving 100+ ft from START). START and STOP can be same point (e.g., home). Solves "forgot to stop my run" problem
 - [ ] Backend: Store waypoint configs (start_lat, start_lng, stop_lat, stop_lng, activation_radius_m) per user or per route preset
@@ -166,21 +172,59 @@
 - [x] CI pipeline green (run #21923806408) — deploy skips gracefully without EC2 secrets
 - [x] Replace MailSlurp with mailpail for e2e email testing (AWS SES + S3)
 - [x] Test coverage audit: tightened tolerances, added DB-level assertions, closed edge case gaps
+- [x] Test audit round 4 (2026-02-11): privacy bypass fixes + LiveRouteMap
+  - Fixed: CRITICAL privacy bypass in `GET /api/activities?user_id=X` — was skipping privacy rules
+  - Fixed: CRITICAL missing privacy checks for `GET /api/activities/:id/likes` and `GET /api/activities/:id/comments`
+  - Fixed: E2E GPS float equality (toBe→toBeCloseTo) in gps-activity.spec.ts
+  - Fixed: E2E photos ordering vacuous-pass guard in photos.spec.ts
+  - Added: 9 new privacy regression tests (2 activities + 7 interactions)
+  - Added: 12 new LiveRouteMap component tests
 - [ ] Configure GitHub Secrets: `STAGING_EC2_HOST`, `PROD_EC2_HOST`, `EC2_SSH_KEY`, `STAGING_DATABASE_URL`, `PROD_DATABASE_URL`
 - [ ] Set up mailpail SES infrastructure: `npx mailpail setup --domain test.sigil.app --bucket sigil-test-emails`
 - [ ] Set up staging EC2 instance (or reuse existing with separate pm2 process)
 
-**Current Test Totals**: Backend 322 + Mobile 324 + E2E API 85 = **731 tests** (all verified on EC2 + CI)
+**Current Test Totals**: Backend 367 + Mobile 398 + E2E API 85 = **850 tests** (all passing)
 
-**Phase 6 Status**: RunningActivityScreen built with GPS tracking + camera button. CommentSheet modal implemented with full CRUD. HomeScreen with activity feed, bottom tabs, and CommentSheet integration. cameraService with expo-image-picker (take photo + pick from gallery). Social interaction UI on ActivityCard (like, high-five, comment counts, photo indicator). Activity list API enriched with social counts. All E2E API tests passing. False positives audited and fixed (3 rounds, latest round fixed 12 issues including a source code bug in pace validation). MailSlurp replaced with mailpail. 7 seed users with activities/follows/interactions. Sync script and CI/CD pipelines (staging + prod) created. Public GitHub repo live with CI passing. EC2 SSH working — backend + E2E tests verified on EC2 with S3 output. Next: react-native-maps for route display, geo-fenced auto start/stop, route photo gallery.
+**Phase 6 Status**: RunningActivityScreen with GPS tracking + camera + LiveRouteMap + audio pace announcements + post-run celebration with PRs/achievements. Full stats system (achievements, PRs, streaks, summaries). OnboardingScreen for first-time users. See Phase 6I below.
 
 **S3 Test Results**:
-- Backend (EC2): `s3://sigil-test-outputs/backend-tests/20260211_222943_results.txt`
-- E2E (EC2): `s3://sigil-test-outputs/e2e-tests/20260211_173049/`
-- E2E latest: `s3://sigil-test-outputs/e2e-tests/LATEST_status.json`
+- Backend (EC2): `s3://sigil-test-outputs/backend-tests/20260211_175200_results.txt` — 331 tests PASSED
+- E2E (EC2): `s3://sigil-test-outputs/e2e-tests/20260211_175201/` — 85 tests PASSED
 - Run E2E: `./scripts/run-e2e-ec2.sh --pull`
 - Run backend: `./scripts/run-tests-ec2.sh --pull`
-- GitHub CI: Run #21925665666 — 322 tests PASSED
+
+### 6I: Delight Features (2026-02-12)
+- [x] Backend: user_achievements table + migration (007)
+- [x] Backend: personal_records table + migration (008)
+- [x] Backend: 18 achievement definitions (first_activity, first_run, first_5k, 10k, half, marathon, 50K/100K/500K club, streak_7, streak_30, early_bird, night_owl, 5/10/50 activities, photo_first, social_butterfly)
+- [x] Backend: PR detection for 1K, 5K, 10K, half marathon, marathon, longest run, fastest pace
+- [x] Backend: Streak calculation (current + longest)
+- [x] Backend: Summary endpoint (week/month/year with comparison + sport breakdown)
+- [x] Backend: GET /api/users/:id/achievements
+- [x] Backend: GET /api/users/:id/personal-records
+- [x] Backend: GET /api/users/:id/streaks
+- [x] Backend: GET /api/users/:id/summary?period=week|month|year
+- [x] Backend: POST /api/users/:id/check-achievements (auto-detect PRs + badges)
+- [x] Backend: 36 new tests (achievements, PRs, streaks, summaries)
+- [x] Mobile: statsService (getAchievements, getPersonalRecords, getStreaks, getSummary, checkAchievements) — 10 tests
+- [x] Mobile: speechService (audio pace announcements, TTS, configurable intervals) — 24 tests
+- [x] Mobile: OnboardingScreen (3-slide intro, skip, complete) — 9 tests
+- [x] Mobile: CelebrationScreen (post-run PRs + achievements display) — 13 tests
+- [x] Mobile: RunningActivityScreen integration (audio toggle, celebration flow, achievement check after save)
+- [x] Mobile: Updated RunningActivityScreen tests for celebration flow — 33 tests (maintained)
+- [x] BDD behavior specs: B-ACHIEVE-001, B-PR-001, B-STREAK-001, B-SUMMARY-001, B-ONBOARD-001, B-AUDIO-001, B-CELEBRATE-001
+- [x] README.md with phone testing instructions + pre-seeded user accounts
+- [ ] **DF-7: Running clubs / group challenges** (HIGH PRIORITY — next)
+- [ ] **DF-8: Route discovery** (popular routes near user)
+- [ ] **DF-9: Guided audio runs** (Couch to 5K style coaching)
+- [ ] **DF-10: Safety features / live sharing** (SOS button, live tracking)
+- [ ] **DF-11: Data import from Strava/Garmin** (GPX/FIT import)
+- [ ] **DF-12: Wearable integration** (Apple Watch / Wear OS)
+- [ ] Deploy delight features to production EC2
+- [ ] Run E2E tests against production URL
+- [ ] Upload test results to S3
+
+**Test Delta (2026-02-12 session)**: Backend +36, Mobile +62, E2E +0 = **+98 tests**
 
 ## Phase 7: Sport Modules - Batch 2 [DEFERRED]
 - See docs/phases/phase_007_sport_modules_batch_2.md

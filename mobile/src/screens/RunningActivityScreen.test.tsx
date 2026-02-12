@@ -13,6 +13,8 @@ jest.mock('../services/locationService');
 jest.mock('../services/activityService');
 jest.mock('../services/cameraService');
 jest.mock('../services/photoService');
+jest.mock('../services/statsService');
+jest.mock('../services/speechService');
 
 const mockLocationService = locationService as jest.Mocked<typeof locationService>;
 const mockActivityService = activityService as jest.Mocked<typeof activityService>;
@@ -348,8 +350,19 @@ describe('RunningActivityScreen', () => {
             visibility: 'public',
           })
         );
-        expect(mockOnSave).toHaveBeenCalledWith(42);
       });
+
+      // After save, should show celebration screen
+      await waitFor(() => {
+        expect(getByTestId('celebration-screen')).toBeTruthy();
+      });
+
+      // Tap Done on celebration to trigger onSave
+      await act(async () => {
+        fireEvent.press(getByTestId('celebration-done-button'));
+      });
+
+      expect(mockOnSave).toHaveBeenCalledWith(42);
     });
 
     it('shows error alert when save fails', async () => {

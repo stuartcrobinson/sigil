@@ -251,6 +251,8 @@ test.describe('Social Interactions — Likes, High-Fives, Comments', () => {
     );
 
     expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain('required');
   });
 
   test('B-INTERACT-004: Multiple comments allowed per user', async ({ request }) => {
@@ -360,6 +362,8 @@ test.describe('Social Interactions — Likes, High-Fives, Comments', () => {
     );
 
     expect(response.status()).toBe(403);
+    const body = await response.json();
+    expect(body.error).toContain('permission');
   });
 
   test('B-INTERACT-001: Cannot interact with friends-only activity without following', async ({ request }) => {

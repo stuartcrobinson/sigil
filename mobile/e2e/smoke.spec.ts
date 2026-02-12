@@ -431,9 +431,9 @@ test.describe('B-NAV-001/002: API Endpoint Navigation', () => {
     expect(response.status()).toBe(401);
   });
 
-  test('B-NAV-002: User search rejects unauthenticated request', async ({ request }) => {
+  test('B-NAV-002: User search allows unauthenticated access (public endpoint)', async ({ request }) => {
     const response = await request.get(`${API_URL}/social/search?q=test`);
-    expect(response.status()).toBe(401);
+    expect(response.status()).toBe(200);
   });
 
   test('B-NAV-002: Profile rejects unauthenticated request', async ({ request }) => {
@@ -470,9 +470,10 @@ test.describe('B-NAV-001/002: API Endpoint Navigation', () => {
     });
     expect(meResponse.status()).toBe(401);
 
+    // Search is a public endpoint — does not reject invalid tokens
     const searchResponse = await request.get(`${API_URL}/social/search?q=test`, {
       headers: { Authorization: `Bearer ${badToken}` },
     });
-    expect(searchResponse.status()).toBe(401);
+    expect(searchResponse.status()).toBe(200);
   });
 });

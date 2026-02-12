@@ -4,9 +4,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { Text } from '../components/Text';
+import { showAlert } from '../utils/platformAlert';
 import {
   GpsPoint,
   startTracking,
@@ -20,10 +20,15 @@ import {
 import { createActivity } from '../services/activityService';
 import { addPhoto } from '../services/photoService';
 import { takePhoto } from '../services/cameraService';
+import { checkAchievements } from '../services/statsService';
+import { checkAndAnnounce, resetAnnouncements } from '../services/speechService';
 import { LiveRouteMap } from '../components/LiveRouteMap';
+import { CelebrationScreen } from './CelebrationScreen';
 import { SportType } from '../types/activity';
 
-type ActivityState = 'idle' | 'tracking' | 'paused' | 'summary';
+import type { NewAchievement, NewPR } from '../services/statsService';
+
+type ActivityState = 'idle' | 'tracking' | 'paused' | 'summary' | 'celebration';
 
 interface RunningActivityScreenProps {
   onSave?: (activityId: number) => void;
@@ -43,6 +48,9 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   const [saving, setSaving] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
   const [savedActivityId, setSavedActivityId] = useState<number | null>(null);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [newAchievements, setNewAchievements] = useState<NewAchievement[]>([]);
+  const [newPRs, setNewPRs] = useState<NewPR[]>([]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<Date | null>(null);
@@ -71,10 +79,17 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
 
   const handleGpsPoint = useCallback((point: GpsPoint) => {
     const points = getRoutePoints();
+    const dist = totalRouteDistance(points);
+    const paceVal = currentPace(points);
     setRoutePoints([...points]);
-    setDistance(totalRouteDistance(points));
-    setPace(currentPace(points));
-  }, []);
+    setDistance(dist);
+    setPace(paceVal);
+
+    // Audio pace announcement at each km
+    if (audioEnabled) {
+      checkAndAnnounce(dist, paceVal, elapsedSeconds);
+    }
+  }, [audioEnabled, elapsedSeconds]);
 
   const handleStart = () => {
     startTimeRef.current = new Date();
@@ -83,6 +98,9 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
     setPace(0);
     setElapsedSeconds(0);
     setRoutePoints([]);
+    setNewAchievements([]);
+    setNewPRs([]);
+    resetAnnouncements();
     setState('tracking');
     startTracking(handleGpsPoint, { intervalMs: 5000, distanceIntervalM: 10 });
   };
@@ -134,9 +152,26 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
         },
       });
 
-      onSave?.(activity.id);
+      setSavedActivityId(activity.id);
+
+      // Check for new achievements and PRs
+      try {
+        const result = await checkAchievements(activity.user_id, {
+          activity_id: activity.id,
+          sport_type: sportType,
+          distance_meters: Math.round(distance),
+          duration_seconds: elapsedSeconds,
+          start_time: startTime,
+        });
+        setNewAchievements(result.new_achievements);
+        setNewPRs(result.new_personal_records);
+      } catch {
+        // Achievement check is non-critical, proceed to celebration
+      }
+
+      setState('celebration');
     } catch (error: any) {
-      Alert.alert('Save Failed', error.message || 'Could not save activity');
+      showAlert('Save Failed', error.message || 'Could not save activity');
     } finally {
       setSaving(false);
     }
@@ -144,7 +179,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
 
   const handleDiscard = () => {
     if (elapsedSeconds > 0) {
-      Alert.alert(
+      showAlert(
         'Discard Activity?',
         'Are you sure you want to discard this activity?',
         [
@@ -294,7 +329,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
           testID="map-placeholder"
         />
 
-        {/* Camera button during active tracking */}
+        {/* Camera + Audio toggle during active tracking */}
         {state === 'tracking' && (
           <View style={styles.cameraRow}>
             <TouchableOpacity
@@ -306,6 +341,14 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
               <Text style={styles.cameraLabel}>
                 Photo{photoCount > 0 ? ` (${photoCount})` : ''}
               </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.cameraButton, !audioEnabled && styles.audioButtonDisabled]}
+              onPress={() => setAudioEnabled(prev => !prev)}
+              testID="audio-toggle"
+            >
+              <Text style={styles.cameraIcon}>{audioEnabled ? '🔊' : '🔇'}</Text>
+              <Text style={styles.cameraLabel}>Audio</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -348,6 +391,23 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
           )}
         </View>
       </View>
+    );
+  }
+
+  // Celebration state — shown after save with PRs/achievements
+  if (state === 'celebration') {
+    return (
+      <CelebrationScreen
+        sportType={sportType}
+        durationSeconds={elapsedSeconds}
+        distanceMeters={Math.round(distance)}
+        paceDisplay={pace > 0 ? `${formatPace(pace)}/km` : '--:--/km'}
+        newAchievements={newAchievements}
+        newPRs={newPRs}
+        onDone={() => {
+          onSave?.(savedActivityId || 0);
+        }}
+      />
     );
   }
 
@@ -451,6 +511,7 @@ const styles = StyleSheet.create({
   cameraButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2, gap: 8 },
   cameraIcon: { fontSize: 20 },
   cameraLabel: { fontSize: 14, fontWeight: '600', color: '#333' },
+  audioButtonDisabled: { opacity: 0.5 },
   controls: { flexDirection: 'row', padding: 16, gap: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
   pauseButton: { flex: 1, backgroundColor: '#FF9800', paddingVertical: 16, borderRadius: 12 },
   resumeButton: { flex: 1, backgroundColor: '#4CAF50', paddingVertical: 16, borderRadius: 12 },

@@ -207,6 +207,8 @@ test.describe('Social Features — Search, Follow, Unfollow', () => {
     );
 
     expect(response.status()).toBeGreaterThanOrEqual(400);
+    const body = await response.json();
+    expect(body.error).toBeDefined();
   });
 
   // --- PROFILE ---
