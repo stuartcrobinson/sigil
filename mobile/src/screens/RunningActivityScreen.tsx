@@ -4,6 +4,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Text } from '../components/Text';
 import { showAlert } from '../utils/platformAlert';
@@ -14,6 +15,7 @@ import {
   getRoutePoints,
   totalRouteDistance,
   currentPace,
+  averagePace,
   formatPace,
   isCurrentlyTracking,
 } from '../services/locationService';
@@ -29,6 +31,14 @@ import { SportType } from '../types/activity';
 import type { NewAchievement, NewPR } from '../services/statsService';
 
 type ActivityState = 'idle' | 'tracking' | 'paused' | 'summary' | 'celebration';
+
+export interface CapturedPhoto {
+  uri: string;
+  lat?: number;
+  lng?: number;
+  routePositionMeters?: number;
+  timestamp: number;
+}
 
 interface RunningActivityScreenProps {
   onSave?: (activityId: number) => void;
@@ -46,7 +56,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [routePoints, setRoutePoints] = useState<GpsPoint[]>([]);
   const [saving, setSaving] = useState(false);
-  const [photoCount, setPhotoCount] = useState(0);
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
   const [savedActivityId, setSavedActivityId] = useState<number | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [newAchievements, setNewAchievements] = useState<NewAchievement[]>([]);
@@ -55,6 +65,8 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<Date | null>(null);
   const pausedSecondsRef = useRef(0);
+  // Accumulated points across pause/resume cycles
+  const accumulatedPointsRef = useRef<GpsPoint[]>([]);
 
   // Timer effect
   useEffect(() => {
@@ -78,10 +90,12 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   }, [state]);
 
   const handleGpsPoint = useCallback((point: GpsPoint) => {
-    const points = getRoutePoints();
-    const dist = totalRouteDistance(points);
-    const paceVal = currentPace(points);
-    setRoutePoints([...points]);
+    const sessionPoints = getRoutePoints();
+    // Merge accumulated (pre-pause) points with current session points
+    const allPoints = [...accumulatedPointsRef.current, ...sessionPoints];
+    const dist = totalRouteDistance(allPoints);
+    const paceVal = currentPace(allPoints);
+    setRoutePoints(allPoints);
     setDistance(dist);
     setPace(paceVal);
 
@@ -94,10 +108,12 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   const handleStart = () => {
     startTimeRef.current = new Date();
     pausedSecondsRef.current = 0;
+    accumulatedPointsRef.current = [];
     setDistance(0);
     setPace(0);
     setElapsedSeconds(0);
     setRoutePoints([]);
+    setCapturedPhotos([]);
     setNewAchievements([]);
     setNewPRs([]);
     resetAnnouncements();
@@ -108,28 +124,36 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
   const handlePause = () => {
     pausedSecondsRef.current = elapsedSeconds;
     startTimeRef.current = null;
+    // Save current session points into accumulator before stopping
+    const sessionPoints = stopTracking();
+    accumulatedPointsRef.current = [...accumulatedPointsRef.current, ...sessionPoints];
+    setRoutePoints([...accumulatedPointsRef.current]);
     setState('paused');
-    const points = stopTracking();
-    setRoutePoints(points);
   };
 
   const handleResume = () => {
     startTimeRef.current = new Date();
     setState('tracking');
+    // Start a new tracking session; accumulated points are preserved in ref
     startTracking(handleGpsPoint, { intervalMs: 5000, distanceIntervalM: 10 });
   };
 
   const handleStop = () => {
     if (state === 'tracking') {
-      const points = stopTracking();
-      setRoutePoints(points);
+      const sessionPoints = stopTracking();
+      accumulatedPointsRef.current = [...accumulatedPointsRef.current, ...sessionPoints];
     }
+    setRoutePoints([...accumulatedPointsRef.current]);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     setState('summary');
   };
+
+  // Compute true average pace for display and saving
+  const avgPaceValue = averagePace(elapsedSeconds, distance);
+  const avgPaceDisplay = avgPaceValue > 0 ? `${formatPace(avgPaceValue)}/km` : '--:--/km';
 
   const handleSave = async () => {
     setSaving(true);
@@ -147,12 +171,26 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
         visibility: 'public',
         sport_data: {
           route_points: routePoints,
-          avg_pace: pace > 0 ? formatPace(pace) : null,
+          avg_pace: avgPaceValue > 0 ? formatPace(avgPaceValue) : null,
           total_distance_meters: Math.round(distance),
         },
       });
 
       setSavedActivityId(activity.id);
+
+      // Upload photos that were captured during the run
+      for (const photo of capturedPhotos) {
+        try {
+          await addPhoto(activity.id, {
+            photo_url: photo.uri,
+            latitude: photo.lat,
+            longitude: photo.lng,
+            route_position_meters: photo.routePositionMeters,
+          });
+        } catch {
+          // Non-critical: photo upload failure shouldn't block save
+        }
+      }
 
       // Check for new achievements and PRs
       try {
@@ -186,6 +224,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
           { text: 'Cancel', style: 'cancel' },
           { text: 'Discard', style: 'destructive', onPress: () => {
             if (isCurrentlyTracking()) stopTracking();
+            accumulatedPointsRef.current = [];
             setState('idle');
             onCancel?.();
           }},
@@ -193,6 +232,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
       );
     } else {
       if (isCurrentlyTracking()) stopTracking();
+      accumulatedPointsRef.current = [];
       setState('idle');
       onCancel?.();
     }
@@ -203,24 +243,19 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
     if (!photo) return;
 
     // Get current GPS position for the photo
-    const points = getRoutePoints();
-    const lastPoint = points.length > 0 ? points[points.length - 1] : null;
+    const sessionPoints = getRoutePoints();
+    const allPoints = [...accumulatedPointsRef.current, ...sessionPoints];
+    const lastPoint = allPoints.length > 0 ? allPoints[allPoints.length - 1] : null;
 
-    setPhotoCount(prev => prev + 1);
+    const captured: CapturedPhoto = {
+      uri: photo.uri,
+      lat: lastPoint?.lat,
+      lng: lastPoint?.lng,
+      routePositionMeters: lastPoint ? totalRouteDistance(allPoints) : undefined,
+      timestamp: Date.now(),
+    };
 
-    // If activity is already saved, attach photo immediately
-    if (savedActivityId) {
-      try {
-        await addPhoto(savedActivityId, {
-          photo_url: photo.uri,
-          latitude: lastPoint?.latitude,
-          longitude: lastPoint?.longitude,
-          route_position_meters: lastPoint ? totalRouteDistance(points) : undefined,
-        });
-      } catch {
-        // Photo will be saved when activity is saved
-      }
-    }
+    setCapturedPhotos(prev => [...prev, captured]);
   };
 
   const formatElapsed = (secs: number): string => {
@@ -314,20 +349,40 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
               <Text style={styles.statLabel}>Pace</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statValue} testID="points-count">
-                {routePoints.length}
+              <Text style={styles.statValue} testID="avg-pace-display">
+                {avgPaceDisplay}
               </Text>
-              <Text style={styles.statLabel}>GPS Points</Text>
+              <Text style={styles.statLabel}>Avg Pace</Text>
             </View>
           </View>
         </View>
 
-        {/* Live route map - renders polyline on-device as GPS points arrive */}
+        {/* Live route map with photo markers */}
         <LiveRouteMap
           routePoints={routePoints}
           isTracking={state === 'tracking'}
-          testID="map-placeholder"
+          photos={capturedPhotos}
+          testID="live-route-map"
         />
+
+        {/* Photo thumbnails strip */}
+        {capturedPhotos.length > 0 && (
+          <ScrollView
+            horizontal
+            style={styles.photoStrip}
+            contentContainerStyle={styles.photoStripContent}
+            testID="photo-strip"
+          >
+            {capturedPhotos.map((p, i) => (
+              <Image
+                key={i}
+                source={{ uri: p.uri }}
+                style={styles.photoThumb}
+                testID={`photo-thumb-${i}`}
+              />
+            ))}
+          </ScrollView>
+        )}
 
         {/* Camera + Audio toggle during active tracking */}
         {state === 'tracking' && (
@@ -339,7 +394,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
             >
               <Text style={styles.cameraIcon}>📷</Text>
               <Text style={styles.cameraLabel}>
-                Photo{photoCount > 0 ? ` (${photoCount})` : ''}
+                Photo{capturedPhotos.length > 0 ? ` (${capturedPhotos.length})` : ''}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -401,7 +456,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
         sportType={sportType}
         durationSeconds={elapsedSeconds}
         distanceMeters={Math.round(distance)}
-        paceDisplay={pace > 0 ? `${formatPace(pace)}/km` : '--:--/km'}
+        paceDisplay={avgPaceDisplay}
         newAchievements={newAchievements}
         newPRs={newPRs}
         onDone={() => {
@@ -439,7 +494,7 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
           <View style={styles.summaryStatRow}>
             <Text style={styles.summaryStatLabel}>Avg Pace</Text>
             <Text style={styles.summaryStatValue} testID="summary-pace">
-              {pace > 0 ? `${formatPace(pace)}/km` : '--:--/km'}
+              {avgPaceDisplay}
             </Text>
           </View>
           <View style={styles.summaryStatRow}>
@@ -448,15 +503,32 @@ export const RunningActivityScreen: React.FC<RunningActivityScreenProps> = ({
               {routePoints.length}
             </Text>
           </View>
-          {photoCount > 0 && (
+          {capturedPhotos.length > 0 && (
             <View style={styles.summaryStatRow}>
               <Text style={styles.summaryStatLabel}>Photos</Text>
               <Text style={styles.summaryStatValue} testID="summary-photos">
-                {photoCount}
+                {capturedPhotos.length}
               </Text>
             </View>
           )}
         </View>
+
+        {/* Photo gallery in summary */}
+        {capturedPhotos.length > 0 && (
+          <View style={styles.summaryPhotos}>
+            <Text style={styles.summaryPhotosTitle}>Photos</Text>
+            <ScrollView horizontal contentContainerStyle={styles.photoStripContent}>
+              {capturedPhotos.map((p, i) => (
+                <Image
+                  key={i}
+                  source={{ uri: p.uri }}
+                  style={styles.summaryPhotoThumb}
+                  testID={`summary-photo-${i}`}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.summaryActions}>
@@ -505,8 +577,9 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center' },
   statValue: { fontSize: 22, fontWeight: '600', color: '#333' },
   statLabel: { fontSize: 12, color: '#999', marginTop: 4 },
-  mapPlaceholder: { flex: 1, backgroundColor: '#E8E8E8', margin: 16, borderRadius: 12, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
-  mapPlaceholderText: { color: '#999', fontSize: 16, textAlign: 'center' },
+  photoStrip: { maxHeight: 72, backgroundColor: '#fff', paddingVertical: 4 },
+  photoStripContent: { paddingHorizontal: 16, gap: 8 },
+  photoThumb: { width: 60, height: 60, borderRadius: 8 },
   cameraRow: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 16 },
   cameraButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2, gap: 8 },
   cameraIcon: { fontSize: 20 },
@@ -522,6 +595,9 @@ const styles = StyleSheet.create({
   summaryStatRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   summaryStatLabel: { fontSize: 16, color: '#666' },
   summaryStatValue: { fontSize: 16, fontWeight: '600', color: '#333' },
+  summaryPhotos: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16 },
+  summaryPhotosTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 12 },
+  summaryPhotoThumb: { width: 80, height: 80, borderRadius: 8 },
   summaryActions: { flexDirection: 'row', padding: 16, gap: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
   discardButton: { flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: '#DDD' },
   discardButtonText: { color: '#666', fontSize: 16, fontWeight: '600', textAlign: 'center' },

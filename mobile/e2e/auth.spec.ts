@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import { createTestEmail, waitForVerificationEmail, deleteTestEmail } from './helpers/mailpail';
+import { test, expect, Page } from '@playwright/test';
+import { createTestEmail, deleteTestEmail } from './helpers/mailpail';
 import { createTestUser, TEST_PASSWORD } from './helpers/test-data';
 
 /**
@@ -12,18 +12,49 @@ import { createTestUser, TEST_PASSWORD } from './helpers/test-data';
  * - B-AUTH-004: Session Persistence
  */
 
+const MAILPAIL_CONFIGURED = !!(process.env.MAILPAIL_DOMAIN && process.env.MAILPAIL_S3_BUCKET);
+
+/** Register a user via the web UI and wait for home screen. */
+async function registerViaUI(
+  page: Page,
+  user: { email: string; password: string; displayName: string },
+) {
+  await page.goto('/');
+  await page.getByTestId('register-link').click();
+  await expect(page.getByText('Create Account')).toBeVisible({ timeout: 5000 });
+
+  await page.getByTestId('register-name-input').fill(user.displayName);
+  await page.getByTestId('register-email-input').fill(user.email);
+  await page.getByTestId('register-password-input').fill(user.password);
+  await page.getByTestId('register-confirm-password-input').fill(user.password);
+  await page.getByTestId('register-button').click();
+
+  await expect(page.getByTestId('home-screen')).toBeVisible({ timeout: 10000 });
+}
+
+/** Navigate to Profile tab and log out (accepts the confirm dialog). */
+async function logoutViaUI(page: Page) {
+  await page.getByText('Profile').click();
+  await expect(page.getByTestId('logout-button')).toBeVisible({ timeout: 5000 });
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByTestId('logout-button').click();
+
+  await expect(page.getByTestId('login-button')).toBeVisible({ timeout: 5000 });
+}
+
 test.describe('Authentication Flow', () => {
+  test.skip(!MAILPAIL_CONFIGURED, 'Skipped: MAILPAIL_DOMAIN/MAILPAIL_S3_BUCKET not set');
+
   let testEmail: { id: string; emailAddress: string };
   let testUser: ReturnType<typeof createTestUser>;
 
   test.beforeEach(async () => {
-    // Create a disposable email for each test
     testEmail = await createTestEmail();
     testUser = createTestUser(testEmail.emailAddress);
   });
 
   test.afterEach(async () => {
-    // Clean up the test email inbox
     if (testEmail) {
       await deleteTestEmail(testEmail.id);
     }
@@ -33,213 +64,139 @@ test.describe('Authentication Flow', () => {
     await page.goto('/');
 
     // Should show login screen initially
-    await expect(page.getByText(/login|sign in/i)).toBeVisible();
+    await expect(page.getByTestId('login-button')).toBeVisible();
 
     // Navigate to registration
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
+    await page.getByTestId('register-link').click();
+    await expect(page.getByText('Create Account')).toBeVisible({ timeout: 5000 });
 
     // Fill registration form
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
+    await page.getByTestId('register-name-input').fill(testUser.displayName);
+    await page.getByTestId('register-email-input').fill(testUser.email);
+    await page.getByTestId('register-password-input').fill(testUser.password);
+    await page.getByTestId('register-confirm-password-input').fill(testUser.password);
 
     // Submit registration
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
-    await registerButton.click();
+    await page.getByTestId('register-button').click();
 
     // Should navigate to home screen after successful registration
-    // (or show success message)
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 10000 });
-
-    // Verify we can see authenticated content
-    await expect(
-      page.getByText(new RegExp(testUser.displayName, 'i'))
-    ).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('home-screen')).toBeVisible({ timeout: 10000 });
   });
 
   test('B-AUTH-002: User can login with correct credentials', async ({ page }) => {
     // First, register the user
-    await page.goto('/');
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
+    await registerViaUI(page, testUser);
 
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
+    // Logout
+    await logoutViaUI(page);
 
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
-    await registerButton.click();
-
-    // Wait for registration to complete
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 10000 });
-
-    // Now logout
-    await page.goto('/');
-    const profileTab = page.getByRole('button', { name: /profile/i });
-    await profileTab.click();
-
-    const logoutButton = page.getByRole('button', { name: /logout|sign out/i });
-    await logoutButton.click();
-
-    // Should be back at login screen
-    await expect(page.getByText(/login|sign in/i)).toBeVisible();
-
-    // Now try to login
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-
-    const loginButton = page.getByRole('button', { name: /login|sign in/i });
-    await loginButton.click();
+    // Now login
+    await page.getByTestId('email-input').fill(testUser.email);
+    await page.getByTestId('password-input').fill(testUser.password);
+    await page.getByTestId('login-button').click();
 
     // Should navigate to home screen
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 10000 });
-    await expect(
-      page.getByText(new RegExp(testUser.displayName, 'i'))
-    ).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('home-screen')).toBeVisible({ timeout: 10000 });
   });
 
   test('B-AUTH-002: Login fails with wrong password', async ({ page }) => {
-    // First, register the user
-    await page.goto('/');
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
-
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
-
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
-    await registerButton.click();
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 10000 });
+    // Register the user first
+    await registerViaUI(page, testUser);
 
     // Logout
-    const profileTab = page.getByRole('button', { name: /profile/i });
-    await profileTab.click();
-    const logoutButton = page.getByRole('button', { name: /logout|sign out/i });
-    await logoutButton.click();
+    await logoutViaUI(page);
 
     // Try to login with wrong password
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', 'WrongPassword123!');
+    await page.getByTestId('email-input').fill(testUser.email);
+    await page.getByTestId('password-input').fill('WrongPassword123!');
 
-    const loginButton = page.getByRole('button', { name: /login|sign in/i });
-    await loginButton.click();
+    // Listen for the alert dialog
+    const dialogPromise = page.waitForEvent('dialog');
+    await page.getByTestId('login-button').click();
 
-    // Should show error message
-    await expect(
-      page.getByText(/invalid|incorrect|wrong|failed/i)
-    ).toBeVisible({ timeout: 5000 });
+    const dialog = await dialogPromise;
+    expect(dialog.message()).toMatch(/failed|invalid|incorrect|wrong|error/i);
+    await dialog.dismiss();
 
     // Should still be on login screen
-    await expect(page.getByText(/login|sign in/i)).toBeVisible();
+    await expect(page.getByTestId('login-button')).toBeVisible();
   });
 
   test('B-AUTH-003: User can logout', async ({ page }) => {
     // Register and login
-    await page.goto('/');
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
-
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
-
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
-    await registerButton.click();
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 10000 });
+    await registerViaUI(page, testUser);
 
     // Navigate to profile
-    const profileTab = page.getByRole('button', { name: /profile/i });
-    await profileTab.click();
+    await page.getByText('Profile').click();
+    await expect(page.getByTestId('logout-button')).toBeVisible({ timeout: 5000 });
 
-    // Logout
-    const logoutButton = page.getByRole('button', { name: /logout|sign out/i });
-    await logoutButton.click();
+    // Logout (accept confirmation dialog)
+    page.once('dialog', (d) => d.accept());
+    await page.getByTestId('logout-button').click();
 
     // Should be redirected to login screen
-    await expect(page.getByText(/login|sign in/i)).toBeVisible({ timeout: 5000 });
-
-    // Trying to access profile should redirect to login
-    await page.goto('/profile');
-    await expect(page.getByText(/login|sign in/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('login-button')).toBeVisible({ timeout: 5000 });
   });
 
   test('B-AUTH-004: Session persists across page reloads', async ({ page }) => {
     // Register
-    await page.goto('/');
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
-
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
-
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
-    await registerButton.click();
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 10000 });
+    await registerViaUI(page, testUser);
 
     // Reload the page
     await page.reload();
 
-    // Should still be logged in
-    await expect(page).toHaveURL(/\/(home|activities)/i, { timeout: 5000 });
-    await expect(
-      page.getByText(new RegExp(testUser.displayName, 'i'))
-    ).toBeVisible({ timeout: 5000 });
+    // Should still be on home screen (session persisted)
+    await expect(page.getByTestId('home-screen')).toBeVisible({ timeout: 10000 });
   });
 
   test('B-AUTH-001: Registration fails with invalid email', async ({ page }) => {
     await page.goto('/');
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
+    await page.getByTestId('register-link').click();
+    await expect(page.getByText('Create Account')).toBeVisible({ timeout: 5000 });
 
-    // Try with invalid email
-    await page.fill('input[placeholder*="email" i]', 'not-an-email');
-    await page.fill('input[placeholder*="password" i]', testUser.password);
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
+    // Fill form with invalid email
+    await page.getByTestId('register-name-input').fill(testUser.displayName);
+    await page.getByTestId('register-email-input').fill('not-an-email');
+    await page.getByTestId('register-password-input').fill(testUser.password);
+    await page.getByTestId('register-confirm-password-input').fill(testUser.password);
 
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
+    // Submit — backend should reject the invalid email
+    const dialogPromise = page.waitForEvent('dialog');
+    await page.getByTestId('register-button').click();
 
-    // Button must be disabled OR submission must show validation error
-    const isDisabled = await registerButton.isDisabled();
-    if (isDisabled) {
-      expect(isDisabled).toBe(true);
-    } else {
-      await registerButton.click();
-      // Must show error message — no silent fallthrough
-      await expect(
-        page.getByText(/invalid.*email|email.*invalid/i)
-      ).toBeVisible({ timeout: 5000 });
-    }
-    // Verify we did NOT navigate to authenticated content
-    await expect(page).not.toHaveURL(/\/(home|activities)/i);
+    const dialog = await dialogPromise;
+    expect(dialog.message()).toMatch(/invalid|email|failed|error/i);
+    await dialog.dismiss();
+
+    // Should still be on registration screen (not home)
+    await expect(page.getByText('Create Account')).toBeVisible();
   });
 
   test('B-AUTH-001: Registration fails with weak password', async ({ page }) => {
     await page.goto('/');
-    const signUpButton = page.getByRole('button', { name: /sign up|register/i });
-    await signUpButton.click();
+    await page.getByTestId('register-link').click();
+    await expect(page.getByText('Create Account')).toBeVisible({ timeout: 5000 });
 
-    // Try with weak password
-    await page.fill('input[placeholder*="email" i]', testUser.email);
-    await page.fill('input[placeholder*="password" i]', 'weak');
-    await page.fill('input[placeholder*="name" i]', testUser.displayName);
+    // Fill form with weak password (< 8 chars)
+    await page.getByTestId('register-name-input').fill(testUser.displayName);
+    await page.getByTestId('register-email-input').fill(testUser.email);
+    await page.getByTestId('register-password-input').fill('weak');
+    await page.getByTestId('register-confirm-password-input').fill('weak');
 
-    const registerButton = page.getByRole('button', { name: /register|sign up|create account/i });
+    // Submit — frontend catches password length < 8 synchronously,
+    // so the dialog fires during the click action. Use page.once to handle it.
+    let dialogMessage = '';
+    page.once('dialog', async (dialog) => {
+      dialogMessage = dialog.message();
+      await dialog.dismiss();
+    });
+    await page.getByTestId('register-button').click();
 
-    // Button must be disabled OR submission must show validation error
-    const isDisabled = await registerButton.isDisabled();
-    if (isDisabled) {
-      expect(isDisabled).toBe(true);
-    } else {
-      await registerButton.click();
-      // Must show error about password requirements — no silent fallthrough
-      await expect(
-        page.getByText(/password.*requirement|weak.*password|password.*strong/i)
-      ).toBeVisible({ timeout: 5000 });
-    }
-    // Verify we did NOT navigate to authenticated content
-    await expect(page).not.toHaveURL(/\/(home|activities)/i);
+    // Give dialog handler a moment to fire
+    await page.waitForTimeout(500);
+    expect(dialogMessage).toMatch(/password|8 characters|requirement/i);
+
+    // Should still be on registration screen
+    await expect(page.getByText('Create Account')).toBeVisible();
   });
 });

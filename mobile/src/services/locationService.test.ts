@@ -168,6 +168,12 @@ describe('locationService', () => {
       expect(formatPace(305)).toBe('5:05');
     });
 
+    it('should not produce :60 seconds (rounds correctly at boundary)', () => {
+      // 359.7 sec/km: old bug would produce "5:60", should be "6:00"
+      expect(formatPace(359.7)).toBe('6:00');
+      expect(formatPace(299.5)).toBe('5:00');
+    });
+
     it('should return --:-- for 0', () => {
       expect(formatPace(0)).toBe('--:--');
     });
@@ -178,6 +184,21 @@ describe('locationService', () => {
 
     it('should return --:-- for Infinity', () => {
       expect(formatPace(Infinity)).toBe('--:--');
+    });
+
+    it('should return --:-- for impossibly fast pace (GPS noise)', () => {
+      expect(formatPace(10)).toBe('--:--');  // 0:10/km is not real
+      expect(formatPace(29)).toBe('--:--');  // under threshold
+    });
+
+    it('should return --:-- for absurdly slow pace (standing still)', () => {
+      expect(formatPace(1801)).toBe('--:--');  // over 30:00/km
+      expect(formatPace(5000)).toBe('--:--');
+    });
+
+    it('should accept paces at the boundary', () => {
+      expect(formatPace(30)).toBe('0:30');    // fastest valid pace
+      expect(formatPace(1800)).toBe('30:00'); // slowest valid pace
     });
   });
 });

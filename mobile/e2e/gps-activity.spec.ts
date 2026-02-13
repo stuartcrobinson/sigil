@@ -48,8 +48,8 @@ test.describe('GPS Activity Creation & Retrieval', () => {
       data: {
         sport_type: 'running',
         title: 'E2E GPS Morning Run',
-        start_time: '2024-02-10T07:00:00Z',
-        end_time: '2024-02-10T07:30:00Z',
+        start_time: new Date(Date.now() - 30 * 60_000).toISOString(), // 30 min ago
+        end_time: new Date().toISOString(),
         duration_seconds: 1800,
         distance_meters: 1500,
         visibility: 'public',

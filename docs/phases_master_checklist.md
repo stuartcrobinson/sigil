@@ -183,9 +183,9 @@
 - [ ] Set up mailpail SES infrastructure: `npx mailpail setup --domain test.sigil.app --bucket sigil-test-emails`
 - [ ] Set up staging EC2 instance (or reuse existing with separate pm2 process)
 
-**Current Test Totals**: Backend 367 + Mobile 398 + E2E API 85 = **850 tests** (all passing)
+**Current Test Totals**: Backend 367 + Mobile 400 + E2E API 85 = **852 tests** (all passing)
 
-**Phase 6 Status**: RunningActivityScreen with GPS tracking + camera + LiveRouteMap + audio pace announcements + post-run celebration with PRs/achievements. Full stats system (achievements, PRs, streaks, summaries). OnboardingScreen for first-time users. See Phase 6I below.
+**Phase 6 Status**: RunningActivityScreen with GPS tracking + camera + LiveRouteMap + audio pace announcements + post-run celebration with PRs/achievements. Full stats system (achievements, PRs, streaks, summaries). OnboardingScreen for first-time users. Web platform fully functional (GPS, camera, alerts). See Phase 6I/6J below.
 
 **S3 Test Results**:
 - Backend (EC2): `s3://sigil-test-outputs/backend-tests/20260211_175200_results.txt` — 331 tests PASSED
@@ -220,11 +220,23 @@
 - [ ] **DF-10: Safety features / live sharing** (SOS button, live tracking)
 - [ ] **DF-11: Data import from Strava/Garmin** (GPX/FIT import)
 - [ ] **DF-12: Wearable integration** (Apple Watch / Wear OS)
-- [ ] Deploy delight features to production EC2
-- [ ] Run E2E tests against production URL
-- [ ] Upload test results to S3
+- [x] Deploy delight features to production EC2
+- [x] Run E2E tests against production URL
+- [x] Upload test results to S3
 
-**Test Delta (2026-02-12 session)**: Backend +36, Mobile +62, E2E +0 = **+98 tests**
+**Test Delta (2026-02-12 delight session)**: Backend +36, Mobile +62, E2E +0 = **+98 tests**
+
+### 6J: Web Platform Fixes (2026-02-12)
+- [x] Cross-platform alert utility (`mobile/src/utils/platformAlert.ts`) — replaces Alert.alert on web with window.confirm/alert
+- [x] Updated 6 screens to use showAlert: Login, Register, Profile, RunningActivity, YogaActivity, WeightliftingActivity
+- [x] Browser GPS tracking (`mobile/src/services/locationService.web.ts`) — navigator.geolocation.watchPosition
+- [x] Web camera service (`mobile/src/services/cameraService.web.ts`) — file input with capture="environment"
+- [x] Strengthened weak tests: CelebrationScreen (+2 tests), interactions.spec.ts, social.spec.ts
+- [x] BDD specs: B-WEB-001, B-WEB-002, B-WEB-003, B-WEB-004
+- [x] Full CI/CD pipeline: unit tests -> staging -> E2E -> prod -> push (3m 25s)
+- [x] Production live: https://sigil.fit + https://api.sigil.fit
+
+**Test Delta (2026-02-12 web fixes session)**: Backend +0, Mobile +2, E2E +0 = **+2 tests**
 
 ## Phase 7: Sport Modules - Batch 2 [DEFERRED]
 - See docs/phases/phase_007_sport_modules_batch_2.md

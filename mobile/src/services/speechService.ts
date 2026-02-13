@@ -64,8 +64,10 @@ export function formatTimeSpoken(totalSeconds: number): string {
  */
 export function formatPaceSpoken(secondsPerKm: number): string {
   if (!secondsPerKm || secondsPerKm <= 0 || !isFinite(secondsPerKm)) return '';
-  const minutes = Math.floor(secondsPerKm / 60);
-  const seconds = Math.round(secondsPerKm % 60);
+  if (secondsPerKm < 30 || secondsPerKm > 1800) return '';
+  const totalSeconds = Math.round(secondsPerKm);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
   return `${minutes} ${minutes !== 1 ? 'minutes' : 'minute'} ${seconds} seconds per kilometer`;
 }
 

@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Text } from './Text';
 import type { GpsPoint } from '../services/locationService';
+import type { CapturedPhoto } from '../screens/RunningActivityScreen';
 
 // Conditional import: react-native-maps may not be available in test/web
 let MapView: any = null;
@@ -20,6 +21,7 @@ try {
 interface LiveRouteMapProps {
   routePoints: GpsPoint[];
   isTracking: boolean;
+  photos?: CapturedPhoto[];
   testID?: string;
 }
 
@@ -33,7 +35,6 @@ function simplifyRoute(
 ): { latitude: number; longitude: number }[] {
   if (points.length <= 2) return points;
 
-  // Find point with max distance from line between first and last
   let maxDist = 0;
   let maxIdx = 0;
   const first = points[0];
@@ -85,6 +86,7 @@ function perpendicularDistance(
 export const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
   routePoints,
   isTracking,
+  photos = [],
   testID = 'live-route-map',
 }) => {
   const mapRef = useRef<any>(null);
@@ -92,8 +94,8 @@ export const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
   // Convert GpsPoint[] to map coordinates
   const coordinates = useMemo(() => {
     return routePoints.map(p => ({
-      latitude: p.latitude ?? p.lat,
-      longitude: p.longitude ?? p.lng,
+      latitude: (p as any).latitude ?? p.lat,
+      longitude: (p as any).longitude ?? p.lng,
     }));
   }, [routePoints]);
 
@@ -188,6 +190,16 @@ export const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
             pinColor="blue"
           />
         )}
+
+        {/* Photo markers */}
+        {photos.filter(p => p.lat && p.lng).map((photo, i) => (
+          <Marker
+            key={`photo-${i}`}
+            coordinate={{ latitude: photo.lat!, longitude: photo.lng! }}
+            title={`Photo ${i + 1}`}
+            pinColor="orange"
+          />
+        ))}
       </MapView>
 
       {/* Point count overlay */}

@@ -20,7 +20,7 @@ app.use(cors({
   origin: corsOrigin.split(',').map(o => o.trim()),
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({ message: 'Hello Sigil' });

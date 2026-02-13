@@ -32,10 +32,10 @@ describe('RegisterScreen', () => {
     const { getByTestId, getByText } = render(<RegisterScreen navigation={mockNavigation} />);
 
     expect(getByText('Create Account')).toBeTruthy();
-    expect(getByTestId('name-input')).toBeTruthy();
-    expect(getByTestId('email-input')).toBeTruthy();
-    expect(getByTestId('password-input')).toBeTruthy();
-    expect(getByTestId('confirm-password-input')).toBeTruthy();
+    expect(getByTestId('register-name-input')).toBeTruthy();
+    expect(getByTestId('register-email-input')).toBeTruthy();
+    expect(getByTestId('register-password-input')).toBeTruthy();
+    expect(getByTestId('register-confirm-password-input')).toBeTruthy();
     expect(getByTestId('register-button')).toBeTruthy();
   });
 
@@ -53,10 +53,10 @@ describe('RegisterScreen', () => {
   it('should show error when passwords do not match', async () => {
     const { getByTestId } = render(<RegisterScreen navigation={mockNavigation} />);
 
-    fireEvent.changeText(getByTestId('name-input'), 'Test User');
-    fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-    fireEvent.changeText(getByTestId('password-input'), 'password123');
-    fireEvent.changeText(getByTestId('confirm-password-input'), 'password456');
+    fireEvent.changeText(getByTestId('register-name-input'), 'Test User');
+    fireEvent.changeText(getByTestId('register-email-input'), 'test@example.com');
+    fireEvent.changeText(getByTestId('register-password-input'), 'password123');
+    fireEvent.changeText(getByTestId('register-confirm-password-input'), 'password456');
     fireEvent.press(getByTestId('register-button'));
 
     await waitFor(() => {
@@ -68,10 +68,10 @@ describe('RegisterScreen', () => {
   it('should show error when password is too short', async () => {
     const { getByTestId } = render(<RegisterScreen navigation={mockNavigation} />);
 
-    fireEvent.changeText(getByTestId('name-input'), 'Test User');
-    fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-    fireEvent.changeText(getByTestId('password-input'), 'pass');
-    fireEvent.changeText(getByTestId('confirm-password-input'), 'pass');
+    fireEvent.changeText(getByTestId('register-name-input'), 'Test User');
+    fireEvent.changeText(getByTestId('register-email-input'), 'test@example.com');
+    fireEvent.changeText(getByTestId('register-password-input'), 'pass');
+    fireEvent.changeText(getByTestId('register-confirm-password-input'), 'pass');
     fireEvent.press(getByTestId('register-button'));
 
     await waitFor(() => {
@@ -84,10 +84,10 @@ describe('RegisterScreen', () => {
     mockRegister.mockResolvedValue(undefined);
     const { getByTestId } = render(<RegisterScreen navigation={mockNavigation} />);
 
-    fireEvent.changeText(getByTestId('name-input'), 'Test User');
-    fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-    fireEvent.changeText(getByTestId('password-input'), 'password123');
-    fireEvent.changeText(getByTestId('confirm-password-input'), 'password123');
+    fireEvent.changeText(getByTestId('register-name-input'), 'Test User');
+    fireEvent.changeText(getByTestId('register-email-input'), 'test@example.com');
+    fireEvent.changeText(getByTestId('register-password-input'), 'password123');
+    fireEvent.changeText(getByTestId('register-confirm-password-input'), 'password123');
     fireEvent.press(getByTestId('register-button'));
 
     await waitFor(() => {
@@ -103,10 +103,10 @@ describe('RegisterScreen', () => {
     mockRegister.mockRejectedValue(new Error('Email already in use'));
     const { getByTestId } = render(<RegisterScreen navigation={mockNavigation} />);
 
-    fireEvent.changeText(getByTestId('name-input'), 'Test User');
-    fireEvent.changeText(getByTestId('email-input'), 'test@example.com');
-    fireEvent.changeText(getByTestId('password-input'), 'password123');
-    fireEvent.changeText(getByTestId('confirm-password-input'), 'password123');
+    fireEvent.changeText(getByTestId('register-name-input'), 'Test User');
+    fireEvent.changeText(getByTestId('register-email-input'), 'test@example.com');
+    fireEvent.changeText(getByTestId('register-password-input'), 'password123');
+    fireEvent.changeText(getByTestId('register-confirm-password-input'), 'password123');
     fireEvent.press(getByTestId('register-button'));
 
     await waitFor(() => {

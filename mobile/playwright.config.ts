@@ -43,23 +43,23 @@ export default defineConfig({
     // API-only tests (social, photos, interactions, feed, GPS, smoke) — single project
     {
       name: 'api',
-      testMatch: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke)\.spec\.ts$/,
+      testMatch: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke|run-lifecycle)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     // UI tests (auth, activities) — multiple browsers
     {
       name: 'chromium',
-      testIgnore: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke)\.spec\.ts$/,
+      testIgnore: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke|run-lifecycle)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'Mobile Chrome',
-      testIgnore: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke)\.spec\.ts$/,
+      testIgnore: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke|run-lifecycle)\.spec\.ts$/,
       use: { ...devices['Pixel 5'] },
     },
     {
       name: 'Mobile Safari',
-      testIgnore: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke)\.spec\.ts$/,
+      testIgnore: /\/(interactions|photos|social|feed-enrichment|gps-activity|smoke|run-lifecycle)\.spec\.ts$/,
       use: { ...devices['iPhone 12'] },
     },
   ],

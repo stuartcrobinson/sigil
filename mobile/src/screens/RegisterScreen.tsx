@@ -71,7 +71,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               onChangeText={setName}
               autoCapitalize="words"
               autoComplete="name"
-              testID="name-input"
+              testID="register-name-input"
             />
 
             <TextInput
@@ -82,7 +82,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
-              testID="email-input"
+              testID="register-email-input"
             />
 
             <TextInput
@@ -92,7 +92,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="password-new"
-              testID="password-input"
+              testID="register-password-input"
             />
 
             <TextInput
@@ -102,7 +102,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               onChangeText={setConfirmPassword}
               secureTextEntry
               autoComplete="password-new"
-              testID="confirm-password-input"
+              testID="register-confirm-password-input"
             />
 
             <TouchableOpacity

@@ -161,12 +161,25 @@ export function currentPace(points?: GpsPoint[], windowSize: number = 5): number
 }
 
 /**
+ * Calculate average pace over the entire run in seconds per km.
+ * Uses total elapsed time and total distance for an accurate average.
+ */
+export function averagePace(elapsedSeconds: number, distanceMeters: number): number {
+  if (distanceMeters <= 0 || elapsedSeconds <= 0) return 0;
+  const distanceKm = distanceMeters / 1000;
+  return elapsedSeconds / distanceKm;
+}
+
+/**
  * Format pace as "M:SS/km".
+ * Clamps to a displayable range: sub-0:30/km is GPS noise, over 30:00/km is standing still.
  */
 export function formatPace(secondsPerKm: number): string {
   if (secondsPerKm <= 0 || !isFinite(secondsPerKm)) return '--:--';
-  const minutes = Math.floor(secondsPerKm / 60);
-  const seconds = Math.round(secondsPerKm % 60);
+  if (secondsPerKm < 30 || secondsPerKm > 1800) return '--:--';
+  const totalSeconds = Math.round(secondsPerKm);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 

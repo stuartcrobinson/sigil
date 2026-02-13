@@ -9,20 +9,42 @@ import {
 
 export const createActivity = async (data: CreateActivityRequest): Promise<Activity> => {
   const token = await getToken();
-  if (!token) throw new Error('No authentication token');
+  if (!token) throw new Error('Not logged in — please log out and log back in');
 
-  const response = await fetch(`${API_URL}/activities`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/activities`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Save timed out — check your connection and try again');
+    }
+    throw new Error('Network error — check your connection');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create activity');
+    const text = await response.text();
+    let message = 'Failed to create activity';
+    try {
+      const json = JSON.parse(text);
+      message = json.error || message;
+    } catch {
+      // Non-JSON error response (e.g. 502 HTML page from proxy)
+      message = `Server error (${response.status})`;
+    }
+    throw new Error(message);
   }
 
   return response.json();

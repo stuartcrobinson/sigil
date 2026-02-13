@@ -2,6 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = '@sigil:auth_token';
 
+// Named exports for services that import { getToken } directly
+export const getToken = async (): Promise<string | null> => {
+  try {
+    return await AsyncStorage.getItem(TOKEN_KEY);
+  } catch (error) {
+    console.error('Error getting token:', error);
+    return null;
+  }
+};
+
 export const storage = {
   async getToken(): Promise<string | null> {
     try {

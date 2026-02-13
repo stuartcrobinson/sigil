@@ -154,13 +154,13 @@ describe('RunningActivityScreen', () => {
       expect(getByTestId('pace-display')).toBeTruthy();
     });
 
-    it('shows map placeholder', () => {
+    it('shows live route map', () => {
       const { getByTestId } = render(
         <RunningActivityScreen onSave={mockOnSave} onCancel={mockOnCancel} />
       );
 
       fireEvent.press(getByTestId('start-activity-button'));
-      expect(getByTestId('map-placeholder')).toBeTruthy();
+      expect(getByTestId('live-route-map')).toBeTruthy();
     });
 
     it('shows pause and stop buttons during tracking', () => {

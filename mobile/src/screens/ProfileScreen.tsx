@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
 import { showAlert } from '../utils/platformAlert';
+import { BuildInfo } from '../components/BuildInfo';
 
 export default function ProfileScreen() {
   const { user, logout, refreshUser } = useAuth();
@@ -157,6 +158,7 @@ export default function ProfileScreen() {
           </>
         )}
       </View>
+      <BuildInfo />
     </ScrollView>
   );
 }
